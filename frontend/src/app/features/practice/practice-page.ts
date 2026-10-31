@@ -1,0 +1,87 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
+
+import { Level, PracticeMode } from '../../core/models/tutor.models';
+import { CloudAvatar } from '../../shared/cloud-avatar/cloud-avatar';
+import { PracticeSession } from './practice-session';
+
+interface Option<T> {
+  value: T;
+  label: string;
+  hint: string;
+}
+
+@Component({
+  selector: 'app-practice-page',
+  imports: [CloudAvatar],
+  templateUrl: './practice-page.html',
+  styleUrl: './practice-page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  // Instancia propia de PracticeSession para esta pantalla (ver practice-session.ts).
+  providers: [PracticeSession],
+  host: {
+    // Barra espaciadora = mantener presionado para hablar
+    '(window:keydown.space)': 'onSpace($event, true)',
+    '(window:keyup.space)': 'onSpace($event, false)',
+  },
+})
+export class PracticePage implements OnDestroy {
+  protected readonly session = inject(PracticeSession);
+
+  protected readonly levels: Option<Level>[] = [
+    { value: 'A2', label: 'A2', hint: 'Básico' },
+    { value: 'B1', label: 'B1', hint: 'Intermedio' },
+    { value: 'B2', label: 'B2', hint: 'Intermedio alto' },
+    { value: 'C1', label: 'C1', hint: 'Avanzado' },
+  ];
+
+  protected readonly modes: Option<PracticeMode>[] = [
+    { value: 'free_talk', label: 'Charla libre', hint: 'Tu día, tus planes, tus gustos' },
+    { value: 'job_interview', label: 'Entrevista de trabajo', hint: 'Preguntas típicas de RR. HH.' },
+    { value: 'travel', label: 'Viajes', hint: 'Aeropuerto, hotel, restaurante' },
+    { value: 'university_life', label: 'Vida universitaria', hint: 'Clases, proyectos, exámenes' },
+    { value: 'tech_talk', label: 'Tech talk', hint: 'Programación, IA, proyectos' },
+  ];
+
+  protected readonly selectedLevel = signal<Level>('B1');
+  protected readonly selectedMode = signal<PracticeMode>('free_talk');
+
+  private readonly chatEnd = viewChild<ElementRef<HTMLElement>>('chatEnd');
+
+  constructor() {
+    // effect(): se ejecuta cada vez que cambia un signal que lee. Aquí: auto-scroll del chat.
+    effect(() => {
+      this.session.messages();
+      queueMicrotask(() => this.chatEnd()?.nativeElement.scrollIntoView({ behavior: 'smooth' }));
+    });
+  }
+
+  protected start(): void {
+    void this.session.start(this.selectedMode(), this.selectedLevel());
+  }
+
+  protected modeLabel(mode: PracticeMode): string {
+    return this.modes.find((m) => m.value === mode)?.label ?? mode;
+  }
+
+  protected onSpace(event: Event, down: boolean): void {
+    const target = event.target as HTMLElement | null;
+    if (this.session.status() === 'setup' || target?.closest('button, select, input')) return;
+    event.preventDefault();
+    const e = event as KeyboardEvent;
+    if (down && !e.repeat) void this.session.beginRecording();
+    if (!down) void this.session.finishRecording();
+  }
+
+  ngOnDestroy(): void {
+    void this.session.end();
+  }
+}

@@ -1,0 +1,69 @@
+import pytest
+
+from app.providers.errors import ProviderError
+from app.tutor.service import EmptyTranscriptError, TutorService
+from app.tutor.session import InMemorySessionStore, SessionNotFoundError
+from app.tutor.types import Level, PracticeMode
+from tests.fakes import FakeLLM, FakeSTT, FakeTTS
+
+
+def make_service(
+    stt: FakeSTT | None = None, llm: FakeLLM | None = None, tts: FakeTTS | None = None
+) -> tuple[TutorService, FakeLLM, FakeTTS]:
+    llm = llm or FakeLLM()
+    tts = tts or FakeTTS()
+    return TutorService(stt or FakeSTT(), llm, tts, InMemorySessionStore()), llm, tts
+
+
+async def test_start_session_greets_and_uses_level_speed() -> None:
+    service, llm, tts = make_service()
+    session, greeting = await service.start_session(PracticeMode.TRAVEL, Level.A2)
+
+    assert greeting.text
+    assert greeting.audio is not None
+    assert "A2" in llm.conversations[0].system_prompt
+    assert tts.calls[0][1] == pytest.approx(0.85)
+    assert session.usage.llm_input_tokens == 100
+
+
+async def test_five_turn_conversation() -> None:
+    service, llm, _ = make_service()
+    session, _ = await service.start_session(PracticeMode.FREE_TALK, Level.B1)
+
+    for _ in range(5):
+        result = await service.handle_turn(session.id, b"audio", "audio/webm")
+        assert result.transcript == "Yesterday I go to the university"
+        assert result.tutor.corrections[0].corrected == "I went"
+
+    assert session.turns == 5
+    assert session.usage.stt_seconds == pytest.approx(12.5)
+    assert len(llm.conversations[0].received) == 6  # saludo + 5 turnos
+
+
+async def test_empty_transcript_raises() -> None:
+    service, _, _ = make_service(stt=FakeSTT(text=""))
+    session, _ = await service.start_session(PracticeMode.FREE_TALK, Level.B1)
+    with pytest.raises(EmptyTranscriptError):
+        await service.handle_turn(session.id, b"audio", "audio/webm")
+
+
+async def test_tts_failure_returns_text_only() -> None:
+    service, _, _ = make_service(tts=FakeTTS(fail=True))
+    _, greeting = await service.start_session(PracticeMode.FREE_TALK, Level.B1)
+    assert greeting.audio is None
+    assert greeting.text
+    assert greeting.warning
+
+
+async def test_llm_failure_on_start_does_not_store_session() -> None:
+    llm = FakeLLM()
+    llm.fail = True
+    service, _, _ = make_service(llm=llm)
+    with pytest.raises(ProviderError):
+        await service.start_session(PracticeMode.FREE_TALK, Level.B1)
+
+
+async def test_unknown_session() -> None:
+    service, _, _ = make_service()
+    with pytest.raises(SessionNotFoundError):
+        await service.handle_turn("nope", b"audio", "audio/webm")
