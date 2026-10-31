@@ -1,0 +1,111 @@
+@if (session.status() === 'setup') {
+  <section class="setup">
+    <app-cloud-avatar state="idle" />
+    <h1>Hi, I'm Nimbo!</h1>
+    <p class="subtitle">Practica tu inglés hablando. Yo te escucho y te corrijo.</p>
+
+    <fieldset>
+      <legend>Tu nivel</legend>
+      <div class="levels">
+        @for (lvl of levels; track lvl.value) {
+          <button
+            type="button"
+            class="chip"
+            [class.selected]="selectedLevel() === lvl.value"
+            [attr.aria-pressed]="selectedLevel() === lvl.value"
+            (click)="selectedLevel.set(lvl.value)"
+          >
+            <strong>{{ lvl.label }}</strong>
+            <small>{{ lvl.hint }}</small>
+          </button>
+        }
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>¿De qué hablamos?</legend>
+      <div class="modes">
+        @for (m of modes; track m.value) {
+          <button
+            type="button"
+            class="mode"
+            [class.selected]="selectedMode() === m.value"
+            [attr.aria-pressed]="selectedMode() === m.value"
+            (click)="selectedMode.set(m.value)"
+          >
+            <strong>{{ m.label }}</strong>
+            <small>{{ m.hint }}</small>
+          </button>
+        }
+      </div>
+    </fieldset>
+
+    @if (session.error(); as error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
+    <button type="button" class="primary" (click)="start()">Empezar a hablar</button>
+  </section>
+} @else {
+  <section class="conversation">
+    <header>
+      <span class="badge">{{ session.level() }} · {{ modeLabel(session.mode()) }}</span>
+      <button type="button" class="ghost" (click)="session.end()">Terminar</button>
+    </header>
+
+    <div class="stage">
+      <app-cloud-avatar [state]="session.tutorState()" />
+      <p class="status" aria-live="polite">
+        @switch (session.status()) {
+          @case ('starting') { Nimbo se está despertando… }
+          @case ('recording') { Te escucho… suelta para enviar }
+          @case ('thinking') { Pensando… }
+          @case ('speaking') { Nimbo está hablando (puedes interrumpirlo) }
+          @default { Mantén presionado el botón o la barra espaciadora para hablar }
+        }
+      </p>
+    </div>
+
+    <ol class="chat" aria-label="Conversación">
+      @for (msg of session.messages(); track msg.id) {
+        <li class="msg" [class.user]="msg.role === 'user'" [class.tutor]="msg.role === 'tutor'">
+          <p>{{ msg.text }}</p>
+          @for (c of msg.corrections; track $index) {
+            <div class="correction" [attr.data-kind]="c.kind">
+              <span class="wrong">{{ c.original }}</span>
+              <span aria-hidden="true">→</span>
+              <span class="right">{{ c.corrected }}</span>
+              <small>{{ c.explanation }}</small>
+            </div>
+          }
+        </li>
+      }
+      <li #chatEnd class="chat-end" aria-hidden="true"></li>
+    </ol>
+
+    @if (session.error(); as error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
+    <div class="talk-bar">
+      <button
+        type="button"
+        class="talk"
+        [class.recording]="session.status() === 'recording'"
+        [disabled]="!session.canTalk() && session.status() !== 'recording'"
+        (pointerdown)="session.beginRecording()"
+        (pointerup)="session.finishRecording()"
+        (pointerleave)="session.finishRecording()"
+        (pointercancel)="session.finishRecording()"
+        (contextmenu)="$event.preventDefault()"
+        aria-label="Mantén presionado para hablar"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"
+          />
+        </svg>
+      </button>
+    </div>
+  </section>
+}
