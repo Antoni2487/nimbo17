@@ -3,7 +3,7 @@
 Uso (desde backend/, con el .env lleno):
     python -m scripts.smoke_providers ruta/a/tu_audio.wav
 
-Hace: tu audio → STT → Claude → TTS, y guarda la voz de Nimbo en nimbo_reply.mp3
+Hace: tu audio → STT → Claude → TTS, y guarda la voz de Nimbo en nimbo_reply.mp3/.wav
 """
 
 import asyncio
@@ -13,11 +13,12 @@ from pathlib import Path
 
 from app.config import get_settings
 from app.providers.factory import build_llm, build_stt, build_tts
+from app.providers.tts.base import SpeechAudio
 from app.tutor.prompts import build_system_prompt
 from app.tutor.types import Level, PracticeMode
 
 
-async def run(audio_bytes: bytes, mime: str) -> bytes:
+async def run(audio_bytes: bytes, mime: str) -> SpeechAudio:
     settings = get_settings()
     stt, llm, tts = build_stt(settings), build_llm(settings), build_tts(settings)
 
@@ -31,16 +32,16 @@ async def run(audio_bytes: bytes, mime: str) -> bytes:
         print(f"      ✏️  {c.original!r} → {c.corrected!r} ({c.kind}): {c.explanation}")
     print(f"      tokens: in={reply.usage.input_tokens} out={reply.usage.output_tokens}")
 
-    audio = await tts.synthesize(reply.text)
-    return audio.data
+    return await tts.synthesize(reply.text)
 
 
 def main(audio_path: Path) -> None:
     mime = mimetypes.guess_type(audio_path)[0] or "audio/wav"
-    mp3 = asyncio.run(run(audio_path.read_bytes(), mime))
-    out = Path("nimbo_reply.mp3")
-    out.write_bytes(mp3)
-    print(f"[TTS] {len(mp3)} bytes → {out.resolve()}")
+    audio = asyncio.run(run(audio_path.read_bytes(), mime))
+    ext = "wav" if audio.mime_type == "audio/wav" else "mp3"
+    out = Path(f"nimbo_reply.{ext}")
+    out.write_bytes(audio.data)
+    print(f"[TTS] {len(audio.data)} bytes → {out.resolve()}")
 
 
 if __name__ == "__main__":
