@@ -17,8 +17,16 @@ from app.providers.tts.base import TTSProvider
 from app.providers.tts.openai_tts import OpenAITTS
 
 
+def _require(value: str, env_name: str) -> str:
+    # Falla al arrancar con un mensaje claro, en vez de un error críptico del SDK.
+    if not value:
+        raise RuntimeError(f"Falta {env_name} en el archivo .env (copia .env.example a .env).")
+    return value
+
+
 def _openai_client(settings: Settings) -> openai.AsyncOpenAI:
-    return openai.AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value() or None)
+    key = _require(settings.openai_api_key.get_secret_value(), "OPENAI_API_KEY")
+    return openai.AsyncOpenAI(api_key=key)
 
 
 def build_stt(settings: Settings) -> STTProvider:
@@ -31,9 +39,8 @@ def build_stt(settings: Settings) -> STTProvider:
 def build_llm(settings: Settings) -> LLMProvider:
     match settings.llm_provider:
         case "anthropic_claude":
-            client = anthropic.AsyncAnthropic(
-                api_key=settings.anthropic_api_key.get_secret_value() or None
-            )
+            key = _require(settings.anthropic_api_key.get_secret_value(), "ANTHROPIC_API_KEY")
+            client = anthropic.AsyncAnthropic(api_key=key)
             return AnthropicClaudeLLM(
                 client,
                 model=settings.llm_model,
