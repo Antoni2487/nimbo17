@@ -1,0 +1,275 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+  padding: 24px 16px;
+}
+
+.setup,
+.conversation {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---------- Setup ---------- */
+
+.setup {
+  align-items: center;
+  text-align: center;
+
+  app-cloud-avatar {
+    max-width: 200px;
+  }
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  color: var(--ink);
+}
+
+.subtitle {
+  margin: -8px 0 0;
+  color: var(--ink-soft);
+}
+
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+legend {
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 auto 10px;
+}
+
+.levels {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.chip,
+.mode {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform 0.1s;
+
+  small {
+    color: var(--ink-soft);
+  }
+  &:hover {
+    border-color: var(--accent-soft);
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+  &.selected {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+}
+
+.chip {
+  align-items: center;
+  text-align: center;
+  strong {
+    font-size: 1.15rem;
+  }
+}
+
+.primary {
+  padding: 14px 32px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+  &:hover {
+    filter: brightness(1.06);
+  }
+}
+
+.ghost {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+/* ---------- Conversation ---------- */
+
+.conversation {
+  min-height: calc(100dvh - 48px);
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.status {
+  margin: 0;
+  min-height: 1.5em;
+  color: var(--ink-soft);
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.chat {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.msg {
+  max-width: 85%;
+  padding: 12px 14px;
+  border-radius: 18px;
+  line-height: 1.45;
+
+  p {
+    margin: 0;
+  }
+  &.tutor {
+    align-self: flex-start;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-bottom-left-radius: 6px;
+  }
+  &.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 6px;
+  }
+}
+
+.correction {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 0.92rem;
+
+  .wrong {
+    text-decoration: line-through;
+    color: var(--danger);
+  }
+  .right {
+    font-weight: 600;
+    color: var(--success);
+  }
+  small {
+    flex-basis: 100%;
+    color: var(--ink-soft);
+  }
+}
+
+.chat-end {
+  height: 1px;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  text-align: center;
+}
+
+.talk-bar {
+  position: sticky;
+  bottom: 16px;
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.talk {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 40%, transparent);
+  touch-action: none; // evita scroll/zoom mientras se mantiene presionado en el celular
+  user-select: none;
+  transition:
+    transform 0.12s,
+    background 0.2s;
+
+  svg {
+    width: 34px;
+    height: 34px;
+    fill: currentColor;
+  }
+  &.recording {
+    background: var(--danger);
+    transform: scale(1.12);
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--danger) 20%, transparent);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
