@@ -51,6 +51,9 @@
     <header>
       <span class="badge">{{ session.level() }} · {{ modeLabel(session.mode()) }}</span>
       <div class="actions">
+        @if (floating.supported && !floating.isOpen()) {
+          <button type="button" class="ghost" (click)="float()">Flotar</button>
+        }
         <button
           type="button"
           class="ghost"
@@ -65,7 +68,18 @@
     </header>
 
     <div class="stage">
-      <app-voice-avatar [state]="session.tutorState()" [voice]="session.voiceMeter()" />
+      <app-voice-avatar
+        #avatar
+        [state]="session.tutorState()"
+        [voice]="session.voiceMeter()"
+        [sleeping]="session.paused()"
+        (tapped)="session.togglePause()"
+      />
+      @if (floating.isOpen()) {
+        <p class="floating-note">
+          Nimbo está en la ventana flotante. Ciérrala para traerlo de vuelta.
+        </p>
+      }
       <p class="status" aria-live="polite">
         @if (session.paused()) {
           En pausa. Nimbo no te escucha.
@@ -114,7 +128,10 @@
 
     <p class="hint">
       Manos libres: puedes cambiar de ventana y seguir practicando. Con audífonos funciona mejor.
-      Barra espaciadora = pausa.
+      Toca a Nimbo (o la barra espaciadora) para pausar.
+      @if (floating.supported) {
+        «Flotar» lo deja siempre encima de tus otras ventanas.
+      }
     </p>
   </section>
 }

@@ -32,7 +32,7 @@ npm install
 npm start                      # http://localhost:4200
 ```
 
-Abre http://localhost:4200, elige nivel y tema, y **habla nomás**: es manos libres. Nimbo detecta cuándo empiezas y terminas de hablar (pausa de ~1,2 s), puedes interrumpirlo mientras habla y sigue funcionando con la pestaña en segundo plano. **Pausa** (o la barra espaciadora) deja de escucharte. Con audífonos funciona mejor: así el micrófono no capta la voz de Nimbo por los parlantes.
+Abre http://localhost:4200, elige nivel y tema, y **habla nomás**: es manos libres. Nimbo detecta cuándo empiezas y terminas de hablar (pausa de ~1,2 s), puedes interrumpirlo mientras habla y sigue funcionando con la pestaña en segundo plano. **Tocar a Nimbo**, el botón **Pausa** o la barra espaciadora dejan de escucharte. **Flotar** (Chrome/Edge) lo saca a una ventanita siempre encima de tus otras ventanas, para practicar mientras trabajas. Con audífonos funciona mejor: así el micrófono no capta la voz de Nimbo por los parlantes.
 
 ## Cómo probar cada pieza
 

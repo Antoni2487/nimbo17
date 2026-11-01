@@ -31,6 +31,11 @@
     <rect class="screen" x="14" y="14" width="212" height="132" rx="34" />
     <g clip-path="url(#nimbo-screen-clip)">
       <line class="baseline" x1="20" y1="80" x2="220" y2="80" />
+      <!-- Ojitos: parpadean, miran hacia tu cursor y se cierran en pausa -->
+      <g #eyes class="eyes">
+        <ellipse class="eye" cx="102" cy="48" rx="5.5" ry="7" />
+        <ellipse class="eye" cx="138" cy="48" rx="5.5" ry="7" />
+      </g>
       <path #trail class="trail" />
       <path #line class="line" filter="url(#nimbo-glow)" />
       <path class="reflection" d="M 14 60 Q 30 22 80 18 L 120 14 L 14 14 Z" />

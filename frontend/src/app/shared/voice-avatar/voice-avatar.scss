@@ -1,5 +1,8 @@
 :host {
   display: block;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
   width: 100%;
   max-width: 300px;
   aspect-ratio: 240 / 190;
@@ -63,6 +66,19 @@ svg {
   stroke-width: 2;
   opacity: 0.25;
 }
+.eye {
+  fill: var(--line-a);
+  filter: drop-shadow(0 0 3px var(--line-a));
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    fill 0.5s,
+    transform 0.3s;
+  animation: eye-blink 4.5s infinite;
+}
+.eye + .eye {
+  animation-delay: 0.04s; /* un parpadeo casi a la vez se ve más natural */
+}
 .led {
   fill: var(--led);
   transition: fill 0.4s;
@@ -88,12 +104,33 @@ svg {
 }
 
 /* ---------- Estados ---------- */
+:host(:focus-visible) .bezel {
+  stroke: var(--line-a);
+}
+:host(.boop) .float {
+  animation: boop 0.6s ease-out;
+}
+:host(.sleeping) {
+  --line-a: #6d7aa8;
+  --line-b: #8a93b8;
+  --led: #3a4570;
+  .eye {
+    animation: none;
+    transform: scaleY(0.15); /* ojos cerrados */
+  }
+  .line {
+    opacity: 0.5;
+  }
+}
 :host(.state-speaking) {
   --line-a: #4fd1ff;
   --line-b: #ff7ab6;
   --led: #4fd1ff;
 }
 :host(.state-listening) {
+  .eye {
+    scale: 1.15; /* ojos atentos */
+  }
   --line-a: #ff8fb1;
   --line-b: #ffb36b;
   --led: #ff8fb1;
@@ -132,6 +169,24 @@ svg {
   100% {
     opacity: 0;
     transform: scale(1.08);
+  }
+}
+@keyframes eye-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes boop {
+  30% {
+    transform: translateY(-14px) scale(1.04, 0.97);
+  }
+  55% {
+    transform: translateY(2px) scale(0.98, 1.03);
   }
 }
 @keyframes blink {

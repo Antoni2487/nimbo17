@@ -251,3 +251,13 @@ header {
   color: var(--ink-soft);
   font-size: 0.85rem;
 }
+
+.floating-note {
+  margin: 0;
+  padding: 16px;
+  max-width: 320px;
+  text-align: center;
+  color: var(--ink-soft);
+  border: 2px dashed var(--line);
+  border-radius: 20px;
+}

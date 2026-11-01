@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 
 import { Level, PracticeMode } from '../../core/models/tutor.models';
+import { FloatingWindow } from '../../core/services/floating-window';
 import { VoiceAvatar } from '../../shared/voice-avatar/voice-avatar';
 import { PracticeSession } from './practice-session';
 
@@ -34,6 +35,8 @@ interface Option<T> {
 })
 export class PracticePage implements OnDestroy {
   protected readonly session = inject(PracticeSession);
+  protected readonly floating = inject(FloatingWindow);
+  private readonly avatar = viewChild('avatar', { read: ElementRef<HTMLElement> });
 
   protected readonly levels: Option<Level>[] = [
     { value: 'A2', label: 'A2', hint: 'Básico' },
@@ -60,6 +63,11 @@ export class PracticePage implements OnDestroy {
   private readonly chatEnd = viewChild<ElementRef<HTMLElement>>('chatEnd');
 
   constructor() {
+    // Si la sesión termina (botón Terminar o un error), la ventanita se cierra:
+    // el avatar que vive en ella deja de existir.
+    effect(() => {
+      if (this.session.status() === 'setup') this.floating.close();
+    });
     // effect(): se ejecuta cada vez que cambia un signal que lee. Aquí: auto-scroll del chat.
     effect(() => {
       this.session.messages();
@@ -69,6 +77,12 @@ export class PracticePage implements OnDestroy {
 
   protected start(): void {
     void this.session.start(this.selectedMode(), this.selectedLevel());
+  }
+
+  /** Saca a Nimbo a una ventanita siempre encima (tiene que ser desde un clic). */
+  protected float(): void {
+    const el = this.avatar()?.nativeElement;
+    if (el) void this.floating.open(el);
   }
 
   protected modeLabel(mode: PracticeMode): string {
@@ -83,6 +97,7 @@ export class PracticePage implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.floating.close();
     void this.session.end();
   }
 }
