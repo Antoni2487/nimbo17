@@ -1,6 +1,6 @@
 @if (session.status() === 'setup') {
   <section class="setup">
-    <app-cloud-avatar state="idle" />
+    <app-voice-avatar state="idle" />
     <h1>Hi, I'm Nimbo!</h1>
     <p class="subtitle">Practica tu inglés hablando. Yo te escucho y te corrijo.</p>
 
@@ -65,7 +65,7 @@
     </header>
 
     <div class="stage">
-      <app-cloud-avatar [state]="session.tutorState()" [voice]="session.voiceMeter()" />
+      <app-voice-avatar [state]="session.tutorState()" [voice]="session.voiceMeter()" />
       <p class="status" aria-live="polite">
         @if (session.paused()) {
           En pausa. Nimbo no te escucha.

@@ -34,5 +34,5 @@ export interface TurnResponse {
   tutor: TutorMessage;
 }
 
-/** Estado de la nube; en la Fase 2 lo enviará el servidor por WebSocket. */
+/** Estado de Nimbo (anima la línea de voz); en la Fase 2 lo enviará el servidor por WebSocket. */
 export type TutorState = 'idle' | 'listening' | 'thinking' | 'speaking';

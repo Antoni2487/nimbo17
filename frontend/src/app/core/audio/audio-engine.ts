@@ -28,7 +28,7 @@ export class AudioEngine {
   /** Crea un medidor que escucha `source` sin alterarlo. */
   meter(ctx: AudioContext, source: AudioNode): VoiceMeter {
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024; // ~21 ms a 48 kHz: suficiente detalle para la boca
+    analyser.fftSize = 1024; // ~21 ms a 48 kHz: unas pocas ondas de voz en pantalla
     analyser.smoothingTimeConstant = 0.5;
     source.connect(analyser);
     return new AnalyserMeter(analyser);

@@ -1,0 +1,41 @@
+<svg viewBox="0 0 240 190" aria-hidden="true">
+  <defs>
+    <linearGradient id="nimbo-glass" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" class="glass-top" />
+      <stop offset="1" class="glass-bottom" />
+    </linearGradient>
+    <linearGradient id="nimbo-line" x1="20" y1="0" x2="220" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" class="line-a" />
+      <stop offset="1" class="line-b" />
+    </linearGradient>
+    <!-- Brillo de neón: la línea borrosa debajo de la línea nítida -->
+    <filter id="nimbo-glow" x="-10%" y="-60%" width="120%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <clipPath id="nimbo-screen-clip">
+      <rect x="14" y="14" width="212" height="132" rx="34" />
+    </clipPath>
+  </defs>
+
+  <ellipse class="shadow" cx="120" cy="178" rx="78" ry="6" />
+
+  <g class="float">
+    <!-- Halo que late cuando Nimbo te escucha -->
+    <rect class="halo" x="10" y="10" width="220" height="140" rx="38" />
+
+    <!-- Pantalla de vidrio -->
+    <rect class="screen" x="14" y="14" width="212" height="132" rx="34" />
+    <g clip-path="url(#nimbo-screen-clip)">
+      <line class="baseline" x1="20" y1="80" x2="220" y2="80" />
+      <path #trail class="trail" />
+      <path #line class="line" filter="url(#nimbo-glow)" />
+      <path class="reflection" d="M 14 60 Q 30 22 80 18 L 120 14 L 14 14 Z" />
+    </g>
+    <rect class="bezel" x="14" y="14" width="212" height="132" rx="34" />
+    <circle class="led" cx="200" cy="34" r="4" />
+  </g>
+</svg>

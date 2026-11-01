@@ -1,6 +1,6 @@
 # Nimbo 🌥️
 
-Tutor de inglés por voz. Hablas en inglés, Nimbo (una nube) te escucha, te responde por voz y te corrige sin cortar la conversación.
+Tutor de inglés por voz. Hablas en inglés, Nimbo te escucha, te responde por voz y te corrige sin cortar la conversación.
 
 > Estado: **Fase 1** (pipeline base con REST). Ver el plan completo en [CLAUDE.md](CLAUDE.md).
 
@@ -59,5 +59,5 @@ Angular ──POST /api/sessions──────────────▶ Fa
 - **Correcciones estructuradas**: Claude responde con texto (eso se habla) y además llama a la herramienta `record_corrections` con un JSON validado por un schema (eso se muestra y, en la Fase 4, se guarda en la BD).
 - **Prompt del tutor**: `backend/app/tutor/prompts.py` (niveles A2–C1, modos y reglas como deletrear palabras dudosas).
 - **Manos libres**: un AudioWorklet (`frontend/public/audio/mic-worklet.js`) mide el micrófono en el hilo de audio, que no se congela en segundo plano. `core/audio/vad.ts` decide cuándo empiezas y terminas de hablar (umbral sobre el ruido de fondo, más exigente mientras Nimbo habla), y la frase se envía como WAV con 500 ms previos para no cortar la primera sílaba.
-- **Boquita flotante**: `shared/cloud-avatar/mouth.ts` calcula la forma de la boca a partir del volumen y el "brillo" de la voz (AnalyserNode), y el componente la dibuja a 60 fps escribiendo directo en el SVG.
+- **Avatar de línea de voz**: una pantalla de vidrio flotante cuya línea es la forma de onda real de la voz de Nimbo (AnalyserNode). `shared/voice-avatar/wave.ts` calcula la línea por estado y el componente la dibuja a 60 fps escribiendo directo en el SVG.
 - **Errores**: si falla un proveedor, el usuario ve un mensaje claro y la sesión sigue viva. Si falla solo el TTS, igual se muestra el texto de Nimbo.

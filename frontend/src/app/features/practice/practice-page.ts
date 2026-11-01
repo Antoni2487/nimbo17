@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 
 import { Level, PracticeMode } from '../../core/models/tutor.models';
-import { CloudAvatar } from '../../shared/cloud-avatar/cloud-avatar';
+import { VoiceAvatar } from '../../shared/voice-avatar/voice-avatar';
 import { PracticeSession } from './practice-session';
 
 interface Option<T> {
@@ -21,7 +21,7 @@ interface Option<T> {
 
 @Component({
   selector: 'app-practice-page',
-  imports: [CloudAvatar],
+  imports: [VoiceAvatar],
   templateUrl: './practice-page.html',
   styleUrl: './practice-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

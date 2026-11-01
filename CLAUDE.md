@@ -8,7 +8,7 @@ Aplicación para **practicar inglés hablado** con un tutor de IA por voz. El tu
 
 Se usa **manos libres, mientras haces otra cosa**: sin botones que obliguen a mirar la pantalla, y funcionando con la pestaña en segundo plano.
 
-El avatar del tutor es **una nube animada con diseño original** con **una boquita flotante que se mueve cuando habla** (sincronizada con el volumen de su voz). Es una pieza crucial de la experiencia. Tiene estados distintos cuando escucha y cuando "piensa". Inspiración: la idea de una boca flotante expresiva, pero el diseño debe ser propio (no copiar personajes existentes).
+El avatar del tutor es **una pantalla de vidrio flotante con una línea de voz luminosa**: la "cara" de Nimbo es la **forma de onda real de su voz**, que se mueve cuando habla. Es una pieza crucial de la experiencia. Estados: en reposo una ondita tranquila; escuchando, la línea cambia de color y sigue la voz del usuario; pensando, un pulso recorre la pantalla. Inspiración: la idea de una onda de voz como cara, pero el diseño debe ser propio (nada de monitores retro grises con remaches ni personajes existentes).
 
 **Usuario objetivo inicial:** hispanohablante (Perú) con buena comprensión de inglés pero poca práctica oral.
 
@@ -19,14 +19,14 @@ El avatar del tutor es **una nube animada con diseño original** con **una boqui
 - **Fluidez:** latencia total (fin de mi frase → inicio de la voz del tutor) idealmente ≤ 2 s.
 - **Voz natural**, no robótica.
 - **Correcciones útiles:** cortas, claras, con el ejemplo correcto, y que la conversación continúe.
-- **UI pulida:** la nube animada es parte central de la experiencia, no un adorno.
+- **UI pulida:** el avatar (la línea de voz) es parte central de la experiencia, no un adorno.
 
 ## Restricciones
 
 - Hardware de desarrollo: laptop Intel Core i5, **12 GB de RAM, gráfica integrada**. **No** correr LLMs ni modelos grandes de STT en local. Todo lo pesado va por APIs.
 - Desarrollo **en local** primero. Deploy a la nube y app móvil son fases posteriores.
 - Las **API keys nunca van en el frontend**. Solo en el backend, vía `.env`.
-- El diseño de la nube debe ser **original** (no copiar personajes existentes).
+- El diseño del avatar debe ser **original** (no copiar personajes existentes).
 
 ## Stack
 
@@ -45,7 +45,7 @@ El avatar del tutor es **una nube animada con diseño original** con **una boqui
 ## Arquitectura
 
 ```
-Angular (UI + nube animada + captura de micrófono)
+Angular (UI + avatar de línea de voz + captura de micrófono)
         │  WebSocket: audio del usuario ↑  /  eventos + audio del tutor ↓
         ▼
 FastAPI (orquestador de la conversación)
@@ -77,7 +77,7 @@ Mensajes JSON con campo `type`. El audio puede ir en frames binarios o en base64
 **Cliente → servidor:** `session.start` (modo y nivel), `audio.chunk`, `audio.end`, `session.end`
 
 **Servidor → cliente:**
-- `state` → `listening | thinking | speaking` (controla la animación de la nube)
+- `state` → `listening | thinking | speaking` (controla la animación del avatar)
 - `transcript.user` → lo que entendió del usuario
 - `tutor.text` → texto de la respuesta (para mostrar subtítulos)
 - `tutor.correction` → `{ original, corrected, explanation }`
@@ -128,7 +128,7 @@ nimbo/
         │   ├── practice/        # pantalla principal de conversación
         │   └── history/         # sesiones pasadas y errores frecuentes
         └── shared/
-            └── cloud-avatar/    # componente de la nube animada
+            └── voice-avatar/    # avatar: pantalla con la línea de voz
 ```
 
 ## Fases y criterios de aceptación
@@ -142,8 +142,8 @@ nimbo/
 - WebSocket, streaming LLM → TTS por frases, cola de reproducción en el front, detección de fin de turno.
 - **Hecho cuando:** la latencia percibida es ≤ 2 s en la mayoría de turnos.
 
-### Fase 3 — La nube
-- Componente `cloud-avatar` con estados `idle | listening | thinking | speaking`, reactivo al volumen del audio (del tutor al hablar, del usuario al escuchar).
+### Fase 3 — El avatar
+- Componente `voice-avatar` con estados `idle | listening | thinking | speaking`, reactivo al volumen del audio (del tutor al hablar, del usuario al escuchar).
 - **Hecho cuando:** la animación es fluida (60 fps) y los cambios de estado se sienten naturales.
 
 ### Fase 4 — Tutor inteligente
