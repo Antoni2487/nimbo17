@@ -65,3 +65,14 @@ def test_empty_audio_returns_422(client: TestClient) -> None:
         files={"audio": ("speech.webm", b"", "audio/webm")},
     )
     assert res.status_code == 422
+
+
+def test_nudge_gives_two_hints_then_409(client: TestClient) -> None:
+    session_id = client.post("/api/sessions", json={}).json()["session_id"]
+    for _ in range(2):
+        res = client.post(f"/api/sessions/{session_id}/nudge")
+        assert res.status_code == 200
+        assert res.json()["text"].startswith("Tranqui")
+    res = client.post(f"/api/sessions/{session_id}/nudge")
+    assert res.status_code == 409
+    assert "habla cuando quieras" in res.json()["detail"]

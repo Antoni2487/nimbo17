@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from app.providers.errors import ProviderError
-from app.tutor.service import EmptyTranscriptError
+from app.tutor.service import EmptyTranscriptError, NoMoreNudgesError
 from app.tutor.session import SessionNotFoundError
 
 
@@ -32,4 +32,12 @@ def register_error_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={"detail": "No te escuché bien. ¿Puedes repetirlo?"},
+        )
+
+    @app.exception_handler(NoMoreNudgesError)
+    async def no_more_nudges(_: Request, __: NoMoreNudgesError) -> JSONResponse:
+        # 409 Conflict: la petición es válida, pero el estado actual no la permite.
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": "Nimbo te espera: habla cuando quieras."},
         )

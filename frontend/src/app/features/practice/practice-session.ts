@@ -9,7 +9,7 @@ import {
 } from '../../core/models/tutor.models';
 import { AudioPlayer } from '../../core/services/audio-player';
 import { AudioRecorder } from '../../core/services/audio-recorder';
-import { TutorApi, apiErrorMessage } from '../../core/services/tutor-api';
+import { TutorApi, apiErrorMessage, isNoMoreNudges } from '../../core/services/tutor-api';
 
 export type SessionStatus = 'setup' | 'starting' | 'ready' | 'recording' | 'thinking' | 'speaking';
 
@@ -23,6 +23,9 @@ export interface ChatEntry {
 
 /** Grabaciones más cortas que esto se consideran un clic accidental. */
 const MIN_RECORDING_MS = 400;
+
+/** Si el estudiante no habla en este tiempo después de que Nimbo pregunta, Nimbo da una pista. */
+export const NUDGE_DELAY_MS = 10_000;
 
 /**
  * Estado + lógica de una sesión de práctica.
@@ -40,6 +43,7 @@ export class PracticeSession {
 
   private sessionId: string | null = null;
   private nextId = 0;
+  private nudgeTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly status = signal<SessionStatus>('setup');
   readonly messages = signal<ChatEntry[]>([]);
@@ -88,6 +92,7 @@ export class PracticeSession {
 
   async beginRecording(): Promise<void> {
     if (!this.canTalk()) return;
+    this.cancelNudge();
     this.player.stop(); // si Nimbo estaba hablando, lo interrumpimos
     this.error.set(null);
     try {
@@ -105,6 +110,7 @@ export class PracticeSession {
     if (durationMs < MIN_RECORDING_MS || blob.size === 0) {
       this.error.set('Mantén presionado el botón mientras hablas.');
       this.status.set('ready');
+      this.scheduleNudge();
       return;
     }
 
@@ -119,7 +125,22 @@ export class PracticeSession {
     }
   }
 
+  /** Nimbo da una pista porque pasó un rato sin que el estudiante hablara. */
+  async nudge(): Promise<void> {
+    this.nudgeTimer = null;
+    if (this.status() !== 'ready' || !this.sessionId) return;
+    this.status.set('thinking');
+    try {
+      await this.say(await this.api.nudge(this.sessionId));
+    } catch (e) {
+      // 409: ya dio sus 2 pistas; Nimbo espera en silencio, sin mostrar error.
+      if (!isNoMoreNudges(e)) this.error.set(apiErrorMessage(e));
+      if (this.status() === 'thinking') this.status.set('ready');
+    }
+  }
+
   async end(): Promise<void> {
+    this.cancelNudge();
     this.player.stop();
     if (this.recorder.isRecording()) await this.recorder.stop();
     this.recorder.release();
@@ -140,7 +161,20 @@ export class PracticeSession {
     // Si el usuario interrumpió, ya estamos en 'recording': no pisamos ese estado.
     if (this.status() === 'speaking' || this.status() === 'starting' || this.status() === 'thinking') {
       this.status.set('ready');
+      this.scheduleNudge();
     }
+  }
+
+  private scheduleNudge(): void {
+    this.cancelNudge();
+    // setTimeout sigue funcionando con la pestaña en segundo plano (el navegador lo
+    // retrasa como mucho ~1 s), así que las pistas llegan aunque estés en otra ventana.
+    this.nudgeTimer = setTimeout(() => void this.nudge(), NUDGE_DELAY_MS);
+  }
+
+  private cancelNudge(): void {
+    if (this.nudgeTimer !== null) clearTimeout(this.nudgeTimer);
+    this.nudgeTimer = null;
   }
 
   private push(role: ChatEntry['role'], text: string, corrections: Correction[]): void {

@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         llm=build_llm(settings),
         tts=build_tts(settings),
         store=InMemorySessionStore(),
+        student_name=settings.user_name,
     )
     yield
 

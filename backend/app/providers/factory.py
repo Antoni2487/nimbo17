@@ -71,7 +71,11 @@ def build_tts(settings: Settings) -> TTSProvider:
     match settings.tts_provider:
         case "kokoro":
             model = load_kokoro_model(settings.kokoro_model_file, settings.tts_models_dir)
-            return KokoroTTS(model, voice=settings.kokoro_voice)
+            return KokoroTTS(
+                model,
+                voice=settings.kokoro_voice,
+                spanish_voice=settings.kokoro_voice_es or None,
+            )
         case "piper":
             return PiperTTS(load_piper_voice(settings.piper_voice, settings.tts_models_dir))
         case "openai_tts":

@@ -24,6 +24,7 @@ class TutorSession:
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     turns: int = 0
+    nudges: int = 0  # pistas dadas desde la última respuesta del estudiante
     usage: SessionUsage = field(default_factory=SessionUsage)
 
 

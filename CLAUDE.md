@@ -4,9 +4,11 @@
 
 ## Contexto del proyecto
 
-Aplicación para **practicar inglés hablado** con un tutor de IA por voz. El tutor conversa con el usuario, le hace preguntas, escucha sus respuestas en inglés y **corrige errores de gramática, vocabulario y pronunciación** de forma breve, sin cortar el flujo de la conversación.
+Aplicación para **practicar inglés hablado** con un tutor de IA por voz. El tutor conversa con el usuario, le hace preguntas, escucha sus respuestas en inglés y **corrige errores de gramática, vocabulario y pronunciación** de forma breve, sin cortar el flujo de la conversación. **Practica en inglés y explica en español** (saludo, correcciones, pistas).
 
-El avatar del tutor es **una nube animada con diseño original** que reacciona al audio: se mueve cuando habla, tiene un estado distinto cuando escucha y otro cuando "piensa".
+Se usa **manos libres, mientras haces otra cosa**: sin botones que obliguen a mirar la pantalla, y funcionando con la pestaña en segundo plano.
+
+El avatar del tutor es **una nube animada con diseño original** con **una boquita flotante que se mueve cuando habla** (sincronizada con el volumen de su voz). Es una pieza crucial de la experiencia. Tiene estados distintos cuando escucha y cuando "piensa". Inspiración: la idea de una boca flotante expresiva, pero el diseño debe ser propio (no copiar personajes existentes).
 
 **Usuario objetivo inicial:** hispanohablante (Perú) con buena comprensión de inglés pero poca práctica oral.
 
@@ -35,9 +37,9 @@ El avatar del tutor es **una nube animada con diseño original** que reacciona a
 | Backend | Python 3.12+, **FastAPI**, asíncrono |
 | Tiempo real | WebSockets (nativos de FastAPI) |
 | Base de datos | PostgreSQL + SQLAlchemy 2.x (async) + Alembic |
-| STT (voz → texto) | Whisper vía API (OpenAI) |
+| STT (voz → texto) | Whisper vía API: **Groq** (gratis, por defecto) u OpenAI |
 | LLM (tutor) | Claude vía API de Anthropic (modelo configurable por `.env`) |
-| TTS (texto → voz) | ElevenLabs u OpenAI TTS (configurable). Piper local como alternativa gratuita |
+| TTS (texto → voz) | **Kokoro** local (gratis, natural, por defecto, voz `af_heart`), Piper local u OpenAI TTS. Azure (voces peruanas) o ElevenLabs como opciones futuras |
 | Infra local | Docker Compose (backend + Postgres); frontend con `ng serve` |
 
 ## Arquitectura
@@ -66,7 +68,7 @@ Para lograr baja latencia:
 
 ### Detección de fin de turno
 
-El usuario habla con el micrófono abierto; hay que detectar cuándo terminó de hablar (VAD por silencio). Empezar con un umbral de silencio simple en el frontend; dejar la lógica aislada para poder mejorarla después. Incluir también un modo "mantener presionado para hablar" como respaldo.
+El usuario habla con el micrófono abierto, **sin botón** (manos libres); hay que detectar cuándo terminó de hablar (VAD por silencio). Empezar con un umbral de silencio simple en el frontend, dentro de un **AudioWorklet** (los timers de una pestaña en segundo plano se congelan; el hilo de audio no). Dejar la lógica aislada para poder mejorarla después. Solo un control discreto para pausar/silenciar.
 
 ## Protocolo WebSocket (propuesta inicial)
 
@@ -84,9 +86,13 @@ Mensajes JSON con campo `type`. El audio puede ir en frames binarios o en base64
 
 ## Comportamiento del tutor (system prompt base)
 
-- Conversa **solo en inglés**, con frases cortas y naturales, adaptadas al nivel del usuario.
-- Hace **una pregunta a la vez** y mantiene la conversación viva.
-- Si el usuario comete un error relevante: lo corrige en **una frase breve** ("Small fix: we say *I went*, not *I go*, for the past") y sigue conversando. No corrige cada detalle mínimo.
+- **Bilingüe:** la práctica (preguntas, reacciones, role-play) es en **inglés**; el saludo, las explicaciones de las correcciones, las pistas y el ánimo van en **español latino**, breves. El español va marcado con `<es>…</es>` para que el TTS lo pronuncie con acento latino (`es-419`).
+- **Saluda al usuario por su nombre** (`USER_NAME`) y le dice qué practicarán hoy.
+- **Personalidad:** cálido, curioso y con humor, como un amigo; reacciona a lo que el usuario cuenta. Algún peruanismo suave de vez en cuando (chévere, bacán, causa), sin abusar. Nada de sonar a libro de texto.
+- Frases cortas y naturales, adaptadas al nivel del usuario. Hace **una pregunta a la vez** y mantiene la conversación viva.
+- Si el usuario comete un error relevante: lo corrige en **una frase breve en español** ("Ojo, se dice *I went*, no *I go*, porque es pasado") y sigue conversando en inglés. No corrige cada detalle mínimo.
+- **Errores de reconocimiento de voz:** no los corrige como si fueran errores del usuario (p. ej. su nombre transcrito como "Nimble"). A Whisper se le pasan "Nimbo" y el nombre del usuario como pistas.
+- **Pistas por silencio:** si el usuario no responde en ~10 s, da una pista en español con un inicio de frase en inglés; si sigue callado, un ejemplo completo. Máximo 2 pistas seguidas; luego espera sin insistir.
 - Si el usuario se traba o habla en español, lo ayuda con la palabra en inglés y lo anima a seguir.
 - Devuelve las correcciones también en formato **estructurado** (JSON o tool use) para guardarlas en la base de datos, separado del texto que se habla.
 - Modos de práctica: `free_talk`, `job_interview`, `travel`, `university_life`, `tech_talk`.

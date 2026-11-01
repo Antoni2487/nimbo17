@@ -13,8 +13,13 @@ from app.providers.errors import ProviderError
 from app.providers.factory import GROQ_BASE_URL, build_llm, build_stt
 from app.providers.stt.openai_whisper import OpenAIWhisperSTT
 from app.providers.tts import kokoro as kokoro_mod
+from app.providers.tts.base import SpeechSegment
 from app.providers.tts.kokoro import KokoroTTS
 from app.providers.tts.piper import PiperTTS
+
+
+def _en(text: str) -> list[SpeechSegment]:
+    return [SpeechSegment("en", text)]
 
 
 class FakeVoice:
@@ -36,7 +41,7 @@ class FakeVoice:
 
 async def test_piper_returns_valid_wav() -> None:
     voice = FakeVoice()
-    audio = await PiperTTS(voice).synthesize("Hello there!")
+    audio = await PiperTTS(voice).synthesize(_en("Hello there!"))
 
     assert audio.mime_type == "audio/wav"
     with wave.open(io.BytesIO(audio.data)) as wav:
@@ -47,13 +52,13 @@ async def test_piper_returns_valid_wav() -> None:
 
 async def test_piper_slower_speed_means_longer_sounds() -> None:
     voice = FakeVoice()
-    await PiperTTS(voice).synthesize("Slowly", speed=0.8)
+    await PiperTTS(voice).synthesize(_en("Slowly"), speed=0.8)
     assert voice.calls[0][1] == pytest.approx(1.25)
 
 
 async def test_piper_failure_is_a_provider_error() -> None:
     with pytest.raises(ProviderError) as exc:
-        await PiperTTS(FakeVoice(fail=True)).synthesize("Hi")
+        await PiperTTS(FakeVoice(fail=True)).synthesize(_en("Hi"))
     assert exc.value.provider == "tts"
     assert "voz" in exc.value.user_message
 
@@ -68,7 +73,7 @@ def test_groq_stt_uses_groq_url_and_key() -> None:
     assert isinstance(stt, OpenAIWhisperSTT)
     assert str(stt._client.base_url).rstrip("/") == GROQ_BASE_URL
     assert stt._client.api_key == "gsk_test"
-    assert stt._model == "whisper-large-v3-turbo"
+    assert stt._model == "whisper-large-v3"
 
 
 def test_groq_stt_without_key_fails_with_clear_message() -> None:
@@ -107,7 +112,7 @@ class FakeKokoro:
 
 async def test_kokoro_returns_valid_16bit_wav() -> None:
     model = FakeKokoro()
-    audio = await KokoroTTS(model, voice="af_heart").synthesize("Hello!", speed=0.85)
+    audio = await KokoroTTS(model, voice="af_heart").synthesize(_en("Hello!"), speed=0.85)
 
     assert audio.mime_type == "audio/wav"
     with wave.open(io.BytesIO(audio.data)) as wav:
@@ -118,14 +123,35 @@ async def test_kokoro_returns_valid_16bit_wav() -> None:
 
 async def test_kokoro_british_voice_uses_british_accent() -> None:
     model = FakeKokoro()
-    await KokoroTTS(model, voice="bf_emma").synthesize("Cheers")
+    await KokoroTTS(model, voice="bf_emma").synthesize(_en("Cheers"))
     assert model.calls[0]["lang"] == "en-gb"
 
 
 async def test_kokoro_failure_is_a_provider_error() -> None:
     with pytest.raises(ProviderError) as exc:
-        await KokoroTTS(FakeKokoro(fail=True)).synthesize("Hi")
+        await KokoroTTS(FakeKokoro(fail=True)).synthesize(_en("Hi"))
     assert exc.value.provider == "tts"
+
+
+async def test_kokoro_mixed_languages_use_latin_spanish_and_one_voice() -> None:
+    model = FakeKokoro()
+    segments = [SpeechSegment("es", "¡Hola Antoni!"), SpeechSegment("en", "How are you?")]
+    audio = await KokoroTTS(model, voice="af_heart").synthesize(segments)
+
+    assert [(c["voice"], c["lang"]) for c in model.calls] == [
+        ("af_heart", "es-419"),
+        ("af_heart", "en-us"),
+    ]
+    with wave.open(io.BytesIO(audio.data)) as wav:
+        # dos tramos de 2400 muestras + una pausa corta entre idiomas
+        assert wav.getnframes() == 2400 * 2 + int(24000 * 0.12)
+
+
+async def test_kokoro_can_use_a_different_spanish_voice() -> None:
+    model = FakeKokoro()
+    tts = KokoroTTS(model, voice="af_heart", spanish_voice="ef_dora")
+    await tts.synthesize([SpeechSegment("es", "Ojo")])
+    assert model.calls[0]["voice"] == "ef_dora"
 
 
 def test_kokoro_downloads_only_missing_files(tmp_path: Path, monkeypatch) -> None:

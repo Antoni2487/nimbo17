@@ -3,11 +3,14 @@ import logging
 import openai
 
 from app.providers.errors import ProviderError
-from app.providers.tts.base import SpeechAudio
+from app.providers.tts.base import SpeechAudio, SpeechSegment
 
 log = logging.getLogger(__name__)
 
-_BASE_STYLE = "You are Nimbo, a warm and encouraging English tutor. Sound friendly and natural."
+_BASE_STYLE = (
+    "You are Nimbo, a warm and playful English tutor. Sound friendly and natural. "
+    "Read Spanish parts with a neutral Latin American accent."
+)
 
 
 class OpenAITTS:
@@ -18,7 +21,10 @@ class OpenAITTS:
         self._model = model
         self._voice = voice
 
-    async def synthesize(self, text: str, *, speed: float = 1.0) -> SpeechAudio:
+    async def synthesize(self, segments: list[SpeechSegment], *, speed: float = 1.0) -> SpeechAudio:
+        # Los modelos de OpenAI son multilingües: les pasamos todo junto y ellos
+        # cambian de idioma solos, sin cortes entre tramos.
+        text = " ".join(s.text for s in segments)
         # Los modelos gpt-4o-*-tts no usan `speed`: aceptan instrucciones de estilo
         # en lenguaje natural. Los modelos tts-1 sí usan `speed` numérico.
         if self._model.startswith("gpt-4o"):

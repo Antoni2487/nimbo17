@@ -3,7 +3,9 @@ import { TestBed } from '@angular/core/testing';
 import { AudioPlayer } from '../../core/services/audio-player';
 import { AudioRecorder } from '../../core/services/audio-recorder';
 import { TutorApi } from '../../core/services/tutor-api';
-import { PracticeSession } from './practice-session';
+import { HttpErrorResponse } from '@angular/common/http';
+
+import { NUDGE_DELAY_MS, PracticeSession } from './practice-session';
 
 const tutor = (text: string) => ({
   text,
@@ -33,6 +35,7 @@ describe('PracticeSession', () => {
         ],
       },
     })),
+    nudge: vi.fn(async (): Promise<unknown> => tutor('Tranqui, you can start with: I like to...')),
     endSession: vi.fn(async () => ({})),
   };
   const recorder = {
@@ -43,6 +46,8 @@ describe('PracticeSession', () => {
     release: vi.fn(),
   };
   const player = { playBase64: vi.fn(async () => undefined), stop: vi.fn() };
+
+  afterEach(() => vi.useRealTimers());
 
   beforeEach(() => {
     recordDuration = 1500;
@@ -85,5 +90,28 @@ describe('PracticeSession', () => {
     await session.finishRecording();
     expect(api.sendTurn).not.toHaveBeenCalled();
     expect(session.error()).toContain('Mantén presionado');
+  });
+
+  it('gives a hint after a long silence, then waits quietly when hints run out', async () => {
+    vi.useFakeTimers();
+    await session.start('travel', 'A2');
+
+    await vi.advanceTimersByTimeAsync(NUDGE_DELAY_MS);
+    expect(api.nudge).toHaveBeenCalledOnce();
+    expect(session.messages().at(-1)?.text).toContain('Tranqui');
+
+    api.nudge.mockRejectedValueOnce(new HttpErrorResponse({ status: 409 }));
+    await vi.advanceTimersByTimeAsync(NUDGE_DELAY_MS);
+    expect(api.nudge).toHaveBeenCalledTimes(2);
+    expect(session.error()).toBeNull();
+    expect(session.status()).toBe('ready');
+  });
+
+  it('does not give a hint if the student starts talking', async () => {
+    vi.useFakeTimers();
+    await session.start('travel', 'A2');
+    await session.beginRecording();
+    await vi.advanceTimersByTimeAsync(NUDGE_DELAY_MS * 2);
+    expect(api.nudge).not.toHaveBeenCalled();
   });
 });

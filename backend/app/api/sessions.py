@@ -49,6 +49,12 @@ async def send_turn(
     )
 
 
+@router.post("/{session_id}/nudge", response_model=TutorMessageOut)
+async def nudge(session_id: str, service: TutorServiceDep) -> TutorMessageOut:
+    """El estudiante se quedó callado: Nimbo da una pista (máximo 2 seguidas)."""
+    return TutorMessageOut.from_domain(await service.nudge(session_id))
+
+
 @router.delete("/{session_id}", response_model=EndSessionResponse)
 async def end_session(session_id: str, service: TutorServiceDep) -> EndSessionResponse:
     session = service.end_session(session_id)

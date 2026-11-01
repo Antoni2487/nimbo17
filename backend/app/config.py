@@ -32,7 +32,9 @@ class Settings(BaseSettings):
     tts_provider: Literal["kokoro", "piper", "openai_tts"] = "kokoro"
 
     stt_model: str = "whisper-1"  # solo para openai_whisper
-    groq_stt_model: str = "whisper-large-v3-turbo"
+    # large-v3 es un poco más lento que large-v3-turbo, pero entiende mejor el inglés
+    # con acento, que es justo el caso de un estudiante.
+    groq_stt_model: str = "whisper-large-v3"
 
     llm_model: str = "claude-haiku-5-5"
     llm_effort: Literal["low", "medium", "high"] = "low"
@@ -43,10 +45,15 @@ class Settings(BaseSettings):
 
     tts_models_dir: Path = _DEFAULT_TTS_MODELS_DIR
     kokoro_voice: str = "af_heart"
+    # Voz para las partes en español. Vacío = la misma voz (una sola "persona").
+    kokoro_voice_es: str = ""
     kokoro_model_file: Literal["kokoro-v1.0.int8.onnx", "kokoro-v1.0.onnx"] = (
         "kokoro-v1.0.int8.onnx"
     )
     piper_voice: str = "en_US-lessac-medium"
+
+    # Nimbo te saluda por tu nombre (y Whisper lo transcribe mejor si lo conoce).
+    user_name: str = ""
 
     cors_origins: list[str] = ["http://localhost:4200"]
     log_level: str = "INFO"

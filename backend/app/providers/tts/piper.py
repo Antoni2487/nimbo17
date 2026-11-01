@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Protocol
 
 from app.providers.errors import ProviderError
-from app.providers.tts.base import SpeechAudio
+from app.providers.tts.base import SpeechAudio, SpeechSegment
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +52,9 @@ class PiperTTS:
     def __init__(self, voice: _Voice) -> None:
         self._voice = voice
 
-    async def synthesize(self, text: str, *, speed: float = 1.0) -> SpeechAudio:
+    async def synthesize(self, segments: list[SpeechSegment], *, speed: float = 1.0) -> SpeechAudio:
+        # Piper carga una sola voz (en inglés): el español se lee con esa misma voz.
+        text = " ".join(s.text for s in segments)
         # Piper es código síncrono que usa la CPU. Si lo llamáramos directo dentro de
         # un endpoint async, bloquearía el event loop de FastAPI y el servidor no
         # atendería a nadie más mientras sintetiza. `asyncio.to_thread` lo corre en

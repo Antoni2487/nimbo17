@@ -7,6 +7,9 @@ solos la primera vez en `TTS_MODELS_DIR` (por defecto backend/voices/):
   - voices-v1.0.bin        (~27 MB, todas las voces)
 
 Voces en inglés: af_* / am_* (EE. UU., mujer / hombre), bf_* / bm_* (Reino Unido).
+Voces en español: ef_dora, em_alex. Cualquier voz puede leer español; con una voz
+inglesa suena con acento gringo, pero Nimbo mantiene una sola "persona".
+El español se pronuncia como latino (es-419: "gracias" con s, no con la z de España).
 Lista completa: https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md
 """
 
@@ -21,7 +24,7 @@ from typing import Any, Protocol
 import numpy as np
 
 from app.providers.errors import ProviderError
-from app.providers.tts.base import SpeechAudio
+from app.providers.tts.base import Language, SpeechAudio, SpeechSegment
 
 log = logging.getLogger(__name__)
 # phonemizer (usado por Kokoro) avisa "words count mismatch" en casi cada frase.
@@ -30,6 +33,8 @@ logging.getLogger("phonemizer").setLevel(logging.ERROR)
 
 _RELEASE_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0"
 VOICES_FILE = "voices-v1.0.bin"
+SPANISH_LANG = "es-419"  # español latinoamericano en espeak
+_PAUSE_BETWEEN_LANGUAGES_S = 0.12
 
 
 class _KokoroModel(Protocol):
@@ -66,7 +71,7 @@ def load_kokoro_model(model_file: str, models_dir: Path) -> _KokoroModel:
     return Kokoro(str(models_dir / model_file), str(models_dir / VOICES_FILE))
 
 
-def _lang_for(voice: str) -> str:
+def _english_for(voice: str) -> str:
     # El prefijo de la voz indica el acento: "b" = británico, "a" = americano.
     return "en-gb" if voice.startswith("b") else "en-us"
 
@@ -84,23 +89,37 @@ def _to_wav(samples: Any, sample_rate: int) -> bytes:
 
 
 class KokoroTTS:
-    def __init__(self, model: _KokoroModel, voice: str = "af_heart") -> None:
+    def __init__(
+        self, model: _KokoroModel, voice: str = "af_heart", spanish_voice: str | None = None
+    ) -> None:
         self._model = model
-        self._voice = voice
-        self._lang = _lang_for(voice)
+        # Para cada idioma: (voz, código de pronunciación de espeak)
+        self._voices: dict[Language, tuple[str, str]] = {
+            "en": (voice, _english_for(voice)),
+            "es": (spanish_voice or voice, SPANISH_LANG),
+        }
 
-    async def synthesize(self, text: str, *, speed: float = 1.0) -> SpeechAudio:
+    async def synthesize(self, segments: list[SpeechSegment], *, speed: float = 1.0) -> SpeechAudio:
         # Igual que con Piper: es trabajo de CPU síncrono, así que va en otro hilo
         # para no congelar el event loop de FastAPI.
         try:
-            data = await asyncio.to_thread(self._synthesize_sync, text, speed)
+            data = await asyncio.to_thread(self._synthesize_sync, segments, speed)
         except Exception as e:
             log.exception("Kokoro TTS failed")
             raise ProviderError("tts", "No pude generar la voz de Nimbo.", str(e)) from e
         return SpeechAudio(data=data, mime_type="audio/wav")
 
-    def _synthesize_sync(self, text: str, speed: float) -> bytes:
-        samples, sample_rate = self._model.create(
-            text, voice=self._voice, speed=speed, lang=self._lang
-        )
-        return _to_wav(samples, sample_rate)
+    def _synthesize_sync(self, segments: list[SpeechSegment], speed: float) -> bytes:
+        parts: list[Any] = []
+        sample_rate = 24000
+        for segment in segments:
+            voice, lang = self._voices[segment.lang]
+            samples, sample_rate = self._model.create(
+                segment.text, voice=voice, speed=speed, lang=lang
+            )
+            if parts:
+                parts.append(np.zeros(int(sample_rate * _PAUSE_BETWEEN_LANGUAGES_S), np.float32))
+            parts.append(np.asarray(samples, dtype=np.float32))
+        if not parts:
+            raise ValueError("No hay texto para sintetizar.")
+        return _to_wav(np.concatenate(parts), sample_rate)

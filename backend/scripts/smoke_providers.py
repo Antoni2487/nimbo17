@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.providers.factory import build_llm, build_stt, build_tts
 from app.providers.tts.base import SpeechAudio
 from app.tutor.prompts import build_system_prompt
+from app.tutor.speech import split_languages
 from app.tutor.types import Level, PracticeMode
 
 
@@ -25,14 +26,15 @@ async def run(audio_bytes: bytes, mime: str) -> SpeechAudio:
     transcription = await stt.transcribe(audio_bytes, mime)
     print(f"[STT] ({transcription.language}, {transcription.duration_s}s) {transcription.text!r}")
 
-    conversation = llm.start_conversation(build_system_prompt(PracticeMode.FREE_TALK, Level.B1))
+    prompt = build_system_prompt(PracticeMode.FREE_TALK, Level.B1, settings.user_name)
+    conversation = llm.start_conversation(prompt)
     reply = await conversation.send(transcription.text)
     print(f"[LLM] {reply.text}")
     for c in reply.corrections:
         print(f"      ✏️  {c.original!r} → {c.corrected!r} ({c.kind}): {c.explanation}")
     print(f"      tokens: in={reply.usage.input_tokens} out={reply.usage.output_tokens}")
 
-    return await tts.synthesize(reply.text)
+    return await tts.synthesize(split_languages(reply.text))
 
 
 def main(audio_path: Path) -> None:

@@ -1,18 +1,23 @@
 import pytest
 
 from app.providers.errors import ProviderError
-from app.tutor.service import EmptyTranscriptError, TutorService
+from app.providers.tts.base import SpeechSegment
+from app.tutor.service import EmptyTranscriptError, NoMoreNudgesError, TutorService
 from app.tutor.session import InMemorySessionStore, SessionNotFoundError
 from app.tutor.types import Level, PracticeMode
 from tests.fakes import FakeLLM, FakeSTT, FakeTTS
 
 
 def make_service(
-    stt: FakeSTT | None = None, llm: FakeLLM | None = None, tts: FakeTTS | None = None
+    stt: FakeSTT | None = None,
+    llm: FakeLLM | None = None,
+    tts: FakeTTS | None = None,
+    student_name: str = "",
 ) -> tuple[TutorService, FakeLLM, FakeTTS]:
     llm = llm or FakeLLM()
     tts = tts or FakeTTS()
-    return TutorService(stt or FakeSTT(), llm, tts, InMemorySessionStore()), llm, tts
+    store = InMemorySessionStore()
+    return TutorService(stt or FakeSTT(), llm, tts, store, student_name), llm, tts
 
 
 async def test_start_session_greets_and_uses_level_speed() -> None:
@@ -67,3 +72,50 @@ async def test_unknown_session() -> None:
     service, _, _ = make_service()
     with pytest.raises(SessionNotFoundError):
         await service.handle_turn("nope", b"audio", "audio/webm")
+
+
+async def test_greets_student_by_name() -> None:
+    service, llm, _ = make_service(student_name="Antoni")
+    await service.start_session(PracticeMode.FREE_TALK, Level.B1)
+    conversation = llm.conversations[0]
+    assert "Antoni" in conversation.system_prompt
+    assert "Greet Antoni by name in Spanish" in conversation.received[0]
+
+
+async def test_names_are_passed_to_speech_recognition() -> None:
+    stt = FakeSTT()
+    service, _, _ = make_service(stt=stt, student_name="Antoni")
+    session, _ = await service.start_session(PracticeMode.FREE_TALK, Level.B1)
+    await service.handle_turn(session.id, b"audio", "audio/webm")
+    assert stt.hint_words == [("Nimbo", "Antoni")]
+
+
+async def test_reply_is_split_by_language_and_shown_without_tags() -> None:
+    service, _, tts = make_service()
+    session, _ = await service.start_session(PracticeMode.FREE_TALK, Level.B1)
+    result = await service.handle_turn(session.id, b"audio", "audio/webm")
+
+    assert result.tutor.text == "Ojo, se dice I went. What did you do there?"
+    assert tts.calls[-1][0] == [
+        SpeechSegment("es", "Ojo, se dice"),
+        SpeechSegment("en", "I went. What did you do there?"),
+    ]
+
+
+async def test_nudges_escalate_then_stop_until_student_answers() -> None:
+    service, llm, _ = make_service()
+    session, _ = await service.start_session(PracticeMode.FREE_TALK, Level.B1)
+
+    first = await service.nudge(session.id)
+    second = await service.nudge(session.id)
+    assert first.text.startswith("Tranqui")
+    received = llm.conversations[0].received
+    assert "sentence starter" in received[1]
+    assert "example answer" in received[2]
+
+    with pytest.raises(NoMoreNudgesError):
+        await service.nudge(session.id)
+
+    await service.handle_turn(session.id, b"audio", "audio/webm")
+    await service.nudge(session.id)  # respondió: vuelve a haber pistas
+    assert second.audio is not None
