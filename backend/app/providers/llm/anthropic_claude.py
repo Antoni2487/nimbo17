@@ -92,12 +92,18 @@ class ClaudeConversation:
 
         texts: list[str] = []
         corrections: list[Correction] = []
-        input_tokens = output_tokens = 0
+        input_tokens = output_tokens = cached_tokens = 0
 
         for _ in range(_MAX_ROUNDS):
             response = await self._create()
-            input_tokens += response.usage.input_tokens
-            output_tokens += response.usage.output_tokens
+            # Con prompt caching, `input_tokens` solo cuenta lo que NO estaba en caché;
+            # lo cacheado viene aparte. Sumamos todo para registrar el uso real.
+            u = response.usage
+            cache_read = getattr(u, "cache_read_input_tokens", None) or 0
+            cache_write = getattr(u, "cache_creation_input_tokens", None) or 0
+            input_tokens += u.input_tokens + cache_read + cache_write
+            cached_tokens += cache_read
+            output_tokens += u.output_tokens
 
             if response.stop_reason == "refusal":
                 raise ProviderError("llm", "Nimbo no pudo responder a eso. Prueba con otra frase.")
@@ -127,7 +133,9 @@ class ClaudeConversation:
         return TutorReply(
             text=text,
             corrections=corrections,
-            usage=LLMUsage(input_tokens=input_tokens, output_tokens=output_tokens),
+            usage=LLMUsage(
+                input_tokens=input_tokens, output_tokens=output_tokens, cached_tokens=cached_tokens
+            ),
         )
 
     async def _create(self) -> Any:

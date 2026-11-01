@@ -122,6 +122,7 @@ class TutorService:
     async def _speak(self, session: TutorSession, reply: TutorReply) -> TutorMessage:
         session.usage.llm_input_tokens += reply.usage.input_tokens
         session.usage.llm_output_tokens += reply.usage.output_tokens
+        session.usage.llm_cached_tokens += reply.usage.cached_tokens
         # Claude marca el español con <es>…</es>: el TTS recibe los tramos por idioma
         # y la UI el texto limpio.
         text = plain_text(reply.text)

@@ -109,3 +109,18 @@ async def test_refusal_raises_provider_error() -> None:
     conv, _ = make_conversation([response([], "refusal")])
     with pytest.raises(ProviderError):
         await conv.send("hello")
+
+
+async def test_usage_counts_cached_tokens_as_input() -> None:
+    usage = SimpleNamespace(
+        input_tokens=8,
+        output_tokens=50,
+        cache_read_input_tokens=900,
+        cache_creation_input_tokens=40,
+    )
+    resp = SimpleNamespace(content=[text("Hi!")], stop_reason="end_turn", usage=usage)
+    conv, _ = make_conversation([resp])
+    reply = await conv.send("hello")
+    assert reply.usage.input_tokens == 948
+    assert reply.usage.cached_tokens == 900
+    assert reply.usage.output_tokens == 50

@@ -12,6 +12,7 @@ class SessionUsage:
 
     llm_input_tokens: int = 0
     llm_output_tokens: int = 0
+    llm_cached_tokens: int = 0  # parte de llm_input_tokens leída de la caché (más barata)
     stt_seconds: float = 0.0
     tts_characters: int = 0
 

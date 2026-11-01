@@ -14,8 +14,11 @@ class Correction:
 
 @dataclass(frozen=True)
 class LLMUsage:
+    # input_tokens = TODOS los tokens de entrada, incluidos los que salieron de la caché.
+    # cached_tokens = cuántos de esos se leyeron de la caché (cuestan ~10 % del precio).
     input_tokens: int = 0
     output_tokens: int = 0
+    cached_tokens: int = 0
 
 
 @dataclass(frozen=True)
