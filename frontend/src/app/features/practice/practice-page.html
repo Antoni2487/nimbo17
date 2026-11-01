@@ -54,7 +54,7 @@
     </header>
 
     <div class="stage">
-      <app-cloud-avatar [state]="session.tutorState()" />
+      <app-cloud-avatar [state]="session.tutorState()" [voice]="session.voiceMeter()" />
       <p class="status" aria-live="polite">
         @switch (session.status()) {
           @case ('starting') { Nimbo se está despertando… }

@@ -1,13 +1,25 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+
+import { AudioEngine } from '../audio/audio-engine';
+import { VoiceMeter } from '../audio/voice-meter';
 
 // Formatos que intentamos grabar, en orden de preferencia. Chrome/Edge/Firefox
 // graban webm/opus; Safari graba mp4/aac. Whisper acepta todos.
-const PREFERRED_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+const PREFERRED_MIME_TYPES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/ogg;codecs=opus',
+  'audio/mp4',
+];
 
 /** Graba el micrófono con MediaRecorder. */
 @Injectable({ providedIn: 'root' })
 export class AudioRecorder {
+  private readonly engine = inject(AudioEngine);
+
   readonly isRecording = signal(false);
+  /** Medidor del micrófono (para que la boca de Nimbo "asienta" mientras hablas). */
+  readonly meter = signal<VoiceMeter | null>(null);
 
   private stream: MediaStream | null = null;
   private recorder: MediaRecorder | null = null;
@@ -20,6 +32,9 @@ export class AudioRecorder {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
+    const ctx = this.engine.running;
+    // Solo se mide: el micrófono NO se conecta a los parlantes (si no, te escucharías).
+    if (ctx) this.meter.set(this.engine.meter(ctx, ctx.createMediaStreamSource(this.stream)));
     return this.stream;
   }
 
@@ -60,5 +75,6 @@ export class AudioRecorder {
   release(): void {
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
+    this.meter.set(null);
   }
 }

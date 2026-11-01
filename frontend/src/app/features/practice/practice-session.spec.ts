@@ -1,5 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 
+import { signal } from '@angular/core';
+
+import { AudioEngine } from '../../core/audio/audio-engine';
 import { AudioPlayer } from '../../core/services/audio-player';
 import { AudioRecorder } from '../../core/services/audio-recorder';
 import { TutorApi } from '../../core/services/tutor-api';
@@ -39,13 +42,14 @@ describe('PracticeSession', () => {
     endSession: vi.fn(async () => ({})),
   };
   const recorder = {
+    meter: signal(null),
     isRecording: () => false,
     ensureMicrophone: vi.fn(async () => ({})),
     start: vi.fn(async () => undefined),
     stop: vi.fn(async () => ({ blob: new Blob(['x']), durationMs: recordDuration })),
     release: vi.fn(),
   };
-  const player = { playBase64: vi.fn(async () => undefined), stop: vi.fn() };
+  const player = { meter: signal(null), playBase64: vi.fn(async () => undefined), stop: vi.fn() };
 
   afterEach(() => vi.useRealTimers());
 
@@ -58,6 +62,7 @@ describe('PracticeSession', () => {
         { provide: TutorApi, useValue: api },
         { provide: AudioRecorder, useValue: recorder },
         { provide: AudioPlayer, useValue: player },
+        { provide: AudioEngine, useValue: { unlock: vi.fn() } },
       ],
     });
     session = TestBed.inject(PracticeSession);

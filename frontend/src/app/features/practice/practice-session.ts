@@ -7,6 +7,8 @@ import {
   TutorMessage,
   TutorState,
 } from '../../core/models/tutor.models';
+import { AudioEngine } from '../../core/audio/audio-engine';
+import { VoiceMeter } from '../../core/audio/voice-meter';
 import { AudioPlayer } from '../../core/services/audio-player';
 import { AudioRecorder } from '../../core/services/audio-recorder';
 import { TutorApi, apiErrorMessage, isNoMoreNudges } from '../../core/services/tutor-api';
@@ -40,6 +42,7 @@ export class PracticeSession {
   private readonly api = inject(TutorApi);
   private readonly recorder = inject(AudioRecorder);
   private readonly player = inject(AudioPlayer);
+  private readonly engine = inject(AudioEngine);
 
   private sessionId: string | null = null;
   private nextId = 0;
@@ -65,10 +68,24 @@ export class PracticeSession {
     }
   });
 
+  /** De quién es la voz que mueve la boca: la de Nimbo al hablar, la tuya al escuchar. */
+  readonly voiceMeter = computed<VoiceMeter | null>(() => {
+    switch (this.tutorState()) {
+      case 'speaking':
+        return this.player.meter();
+      case 'listening':
+        return this.recorder.meter();
+      default:
+        return null;
+    }
+  });
+
   /** Se puede hablar cuando Nimbo espera, o mientras habla (para interrumpirlo). */
   readonly canTalk = computed(() => ['ready', 'speaking'].includes(this.status()));
 
   async start(mode: PracticeMode, level: Level): Promise<void> {
+    // Síncrono, antes de cualquier await: todavía estamos dentro del clic del usuario.
+    this.engine.unlock();
     this.mode.set(mode);
     this.level.set(level);
     this.error.set(null);
@@ -82,9 +99,7 @@ export class PracticeSession {
       await this.say(res.tutor);
     } catch (e) {
       this.error.set(
-        e instanceof DOMException
-          ? 'Necesito permiso para usar tu micrófono.'
-          : apiErrorMessage(e),
+        e instanceof DOMException ? 'Necesito permiso para usar tu micrófono.' : apiErrorMessage(e),
       );
       this.status.set('setup');
     }
@@ -159,7 +174,11 @@ export class PracticeSession {
       await this.player.playBase64(message.audio_base64, message.audio_mime_type);
     }
     // Si el usuario interrumpió, ya estamos en 'recording': no pisamos ese estado.
-    if (this.status() === 'speaking' || this.status() === 'starting' || this.status() === 'thinking') {
+    if (
+      this.status() === 'speaking' ||
+      this.status() === 'starting' ||
+      this.status() === 'thinking'
+    ) {
       this.status.set('ready');
       this.scheduleNudge();
     }

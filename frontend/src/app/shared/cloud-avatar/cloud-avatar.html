@@ -1,16 +1,24 @@
-<svg viewBox="0 0 240 190" aria-hidden="true">
+<svg viewBox="0 0 240 200" aria-hidden="true">
   <defs>
     <linearGradient id="nimbo-body" x1="0" y1="30" x2="0" y2="170" gradientUnits="userSpaceOnUse">
       <stop offset="0" class="body-top" />
       <stop offset="1" class="body-bottom" />
     </linearGradient>
+    <radialGradient id="nimbo-lips" cx="0.5" cy="0.35" r="0.8">
+      <stop offset="0" class="lips-light" />
+      <stop offset="1" class="lips-dark" />
+    </radialGradient>
+    <!-- Dientes y lengua solo se ven DENTRO de la boca -->
+    <clipPath id="nimbo-mouth-clip">
+      <path #mouthClip />
+    </clipPath>
   </defs>
 
   <!-- Aro que late cuando Nimbo escucha -->
   <ellipse class="ring" cx="120" cy="112" rx="104" ry="74" />
 
   <g class="float">
-    <ellipse class="shadow" cx="120" cy="178" rx="70" ry="6" />
+    <ellipse class="shadow" cx="120" cy="190" rx="70" ry="6" />
 
     <g class="body">
       <!-- Varias formas del mismo color se ven como una sola nube -->
@@ -22,19 +30,31 @@
         <circle cx="50" cy="134" r="27" />
         <rect x="50" y="112" width="146" height="50" rx="25" />
       </g>
-      <!-- Brillo suave -->
       <ellipse class="shine" cx="98" cy="62" rx="22" ry="10" transform="rotate(-18 98 62)" />
 
-      <g class="face">
-        <g class="eyes">
-          <ellipse cx="102" cy="112" rx="6.5" ry="9.5" />
-          <ellipse cx="140" cy="112" rx="6.5" ry="9.5" />
+      <g class="eyes">
+        <g class="eye">
+          <ellipse cx="100" cy="104" rx="6.5" ry="9.5" />
+          <circle class="glint" cx="102.5" cy="100" r="2.2" />
         </g>
-        <circle class="cheek" cx="88" cy="129" r="6.5" />
-        <circle class="cheek" cx="154" cy="129" r="6.5" />
-        <path class="mouth smile" d="M112 129 Q121 137 130 129" />
-        <ellipse class="mouth talk" cx="121" cy="132" rx="7" ry="5" />
+        <g class="eye">
+          <ellipse cx="142" cy="104" rx="6.5" ry="9.5" />
+          <circle class="glint" cx="144.5" cy="100" r="2.2" />
+        </g>
       </g>
+      <circle class="cheek" cx="84" cy="124" r="7" />
+      <circle class="cheek" cx="158" cy="124" r="7" />
+    </g>
+
+    <!-- La boquita flotante: va aparte de la nube, con su propia sombra y su propio vaivén -->
+    <ellipse #mouthShadow class="mouth-shadow" cx="121" cy="170" rx="18" ry="3" />
+    <g #mouth class="mouth" transform="translate(121 148)">
+      <path #mouthInner class="mouth-inner" />
+      <g clip-path="url(#nimbo-mouth-clip)">
+        <rect #teeth class="teeth" x="-11" y="-8" width="22" height="5" rx="2" />
+        <ellipse #tongue class="tongue" cx="0" cy="0" rx="0" ry="0" />
+      </g>
+      <path #mouthLips class="mouth-lips" />
     </g>
 
     <!-- Burbujas de "pensando" -->
