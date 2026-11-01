@@ -1,9 +1,10 @@
-"""Groq (STT) y Piper (TTS): sin red ni modelos reales."""
+"""Groq (STT), Kokoro y Piper (TTS): sin red ni modelos reales."""
 
 import io
 import wave
 from pathlib import Path
 
+import numpy as np
 import pytest
 from pydantic import SecretStr
 
@@ -11,6 +12,8 @@ from app.config import Settings
 from app.providers.errors import ProviderError
 from app.providers.factory import GROQ_BASE_URL, build_llm, build_stt
 from app.providers.stt.openai_whisper import OpenAIWhisperSTT
+from app.providers.tts import kokoro as kokoro_mod
+from app.providers.tts.kokoro import KokoroTTS
 from app.providers.tts.piper import PiperTTS
 
 
@@ -83,5 +86,53 @@ def test_free_setup_does_not_need_openai_key() -> None:
     build_llm(settings)
 
 
-def test_default_voices_dir_is_inside_backend() -> None:
-    assert _settings().piper_voices_dir == Path(__file__).resolve().parents[1] / "voices"
+def test_default_models_dir_is_inside_backend() -> None:
+    assert _settings().tts_models_dir == Path(__file__).resolve().parents[1] / "voices"
+
+
+class FakeKokoro:
+    """Imita `kokoro_onnx.Kokoro.create`: devuelve 0.1 s de un tono en float32."""
+
+    def __init__(self, fail: bool = False) -> None:
+        self.fail = fail
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, text: str, voice: str, speed: float, lang: str) -> tuple[object, int]:
+        if self.fail:
+            raise RuntimeError("onnx exploded")
+        self.calls.append({"text": text, "voice": voice, "speed": speed, "lang": lang})
+        samples = np.sin(np.linspace(0, 100, 2400, dtype=np.float32)) * 1.5  # se sale de [-1, 1]
+        return samples, 24000
+
+
+async def test_kokoro_returns_valid_16bit_wav() -> None:
+    model = FakeKokoro()
+    audio = await KokoroTTS(model, voice="af_heart").synthesize("Hello!", speed=0.85)
+
+    assert audio.mime_type == "audio/wav"
+    with wave.open(io.BytesIO(audio.data)) as wav:
+        assert (wav.getframerate(), wav.getsampwidth(), wav.getnchannels()) == (24000, 2, 1)
+        assert wav.getnframes() == 2400
+    assert model.calls == [{"text": "Hello!", "voice": "af_heart", "speed": 0.85, "lang": "en-us"}]
+
+
+async def test_kokoro_british_voice_uses_british_accent() -> None:
+    model = FakeKokoro()
+    await KokoroTTS(model, voice="bf_emma").synthesize("Cheers")
+    assert model.calls[0]["lang"] == "en-gb"
+
+
+async def test_kokoro_failure_is_a_provider_error() -> None:
+    with pytest.raises(ProviderError) as exc:
+        await KokoroTTS(FakeKokoro(fail=True)).synthesize("Hi")
+    assert exc.value.provider == "tts"
+
+
+def test_kokoro_downloads_only_missing_files(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / kokoro_mod.VOICES_FILE).write_bytes(b"already here")
+    downloaded: list[str] = []
+    monkeypatch.setattr(kokoro_mod, "_download", lambda name, _dir: downloaded.append(name))
+    monkeypatch.setattr("kokoro_onnx.Kokoro", lambda model, voices: ("loaded", model, voices))
+
+    kokoro_mod.load_kokoro_model("kokoro-v1.0.int8.onnx", tmp_path)
+    assert downloaded == ["kokoro-v1.0.int8.onnx"]

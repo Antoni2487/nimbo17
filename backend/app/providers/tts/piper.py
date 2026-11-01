@@ -1,7 +1,7 @@
 """TTS local y gratuito con Piper (corre en la CPU, sin API key).
 
 Piper usa modelos ONNX pequeños (~60 MB por voz). La voz se descarga sola la
-primera vez que arranca el backend y queda guardada en `PIPER_VOICES_DIR`.
+primera vez que arranca el backend y queda guardada en `TTS_MODELS_DIR`.
 Catálogo de voces: https://huggingface.co/rhasspy/piper-voices
 """
 

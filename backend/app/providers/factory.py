@@ -17,6 +17,7 @@ from app.providers.llm.base import LLMProvider
 from app.providers.stt.base import STTProvider
 from app.providers.stt.openai_whisper import OpenAIWhisperSTT
 from app.providers.tts.base import TTSProvider
+from app.providers.tts.kokoro import KokoroTTS, load_kokoro_model
 from app.providers.tts.openai_tts import OpenAITTS
 from app.providers.tts.piper import PiperTTS, load_piper_voice
 
@@ -68,8 +69,11 @@ def build_llm(settings: Settings) -> LLMProvider:
 
 def build_tts(settings: Settings) -> TTSProvider:
     match settings.tts_provider:
+        case "kokoro":
+            model = load_kokoro_model(settings.kokoro_model_file, settings.tts_models_dir)
+            return KokoroTTS(model, voice=settings.kokoro_voice)
         case "piper":
-            return PiperTTS(load_piper_voice(settings.piper_voice, settings.piper_voices_dir))
+            return PiperTTS(load_piper_voice(settings.piper_voice, settings.tts_models_dir))
         case "openai_tts":
             return OpenAITTS(
                 _openai_client(settings), model=settings.tts_model, voice=settings.tts_voice

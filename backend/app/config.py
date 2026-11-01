@@ -14,8 +14,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # El .env vive en la raíz del repo (un nivel arriba de backend/)
 _ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
-# Voces de Piper descargadas: backend/voices/ (ignorada por git)
-_DEFAULT_VOICES_DIR = Path(__file__).resolve().parents[1] / "voices"
+# Modelos de voz locales (Kokoro, Piper) descargados: backend/voices/ (ignorada por git)
+_DEFAULT_TTS_MODELS_DIR = Path(__file__).resolve().parents[1] / "voices"
 
 
 class Settings(BaseSettings):
@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr = SecretStr("")
     groq_api_key: SecretStr = SecretStr("")
 
-    # Por defecto, la opción gratuita: Groq para escuchar y Piper (local) para hablar.
+    # Por defecto, la opción gratuita: Groq para escuchar y Kokoro (local) para hablar.
     stt_provider: Literal["groq_whisper", "openai_whisper"] = "groq_whisper"
     llm_provider: Literal["anthropic_claude"] = "anthropic_claude"
-    tts_provider: Literal["piper", "openai_tts"] = "piper"
+    tts_provider: Literal["kokoro", "piper", "openai_tts"] = "kokoro"
 
     stt_model: str = "whisper-1"  # solo para openai_whisper
     groq_stt_model: str = "whisper-large-v3-turbo"
@@ -41,8 +41,12 @@ class Settings(BaseSettings):
     tts_model: str = "gpt-4o-mini-tts"
     tts_voice: str = "nova"
 
+    tts_models_dir: Path = _DEFAULT_TTS_MODELS_DIR
+    kokoro_voice: str = "af_heart"
+    kokoro_model_file: Literal["kokoro-v1.0.int8.onnx", "kokoro-v1.0.onnx"] = (
+        "kokoro-v1.0.int8.onnx"
+    )
     piper_voice: str = "en_US-lessac-medium"
-    piper_voices_dir: Path = _DEFAULT_VOICES_DIR
 
     cors_origins: list[str] = ["http://localhost:4200"]
     log_level: str = "INFO"

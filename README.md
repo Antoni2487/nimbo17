@@ -24,7 +24,7 @@ python -m venv .venv
 .venv\Scripts\activate         # Windows  (Linux/Mac: source .venv/bin/activate)
 pip install -e ".[dev]"
 uvicorn app.main:app --reload  # http://localhost:8000/docs
-                               # la 1.ª vez descarga la voz de Piper (~60 MB) en backend/voices/
+                               # la 1.ª vez descarga la voz de Kokoro (~115 MB) en backend/voices/
 
 # 3. Frontend (otra terminal)
 cd frontend
@@ -50,12 +50,12 @@ Abre http://localhost:4200, elige nivel y tema, y **mantén presionado** el bot�
 Angular ──POST /api/sessions──────────────▶ FastAPI ── TutorService
         ──POST /api/sessions/{id}/turns──▶            ├── STTProvider  (Whisper en Groq u OpenAI)
           (audio webm/opus, multipart)                ├── LLMProvider  (Claude + tool use)
-        ◀── JSON: transcript, texto,                  └── TTSProvider  (Piper local u OpenAI TTS)
+        ◀── JSON: transcript, texto,                  └── TTSProvider  (Kokoro/Piper local u OpenAI TTS)
             correcciones, audio wav/mp3 base64
 ```
 
 - **Proveedores intercambiables**: cada servicio externo está detrás de un `Protocol` (`app/providers/*/base.py`). El proveedor activo se elige en `.env`, y `app/providers/factory.py` es el único archivo que conoce las clases concretas.
-- **Configuración gratuita por defecto**: Groq ofrece el mismo Whisper con una API compatible con la de OpenAI (por eso se reutiliza `OpenAIWhisperSTT` con otra URL), y Piper genera la voz en tu CPU (~0,4 s por frase) sin API key. Solo se pide la key de los proveedores activos.
+- **Configuración gratuita por defecto**: Groq ofrece el mismo Whisper con una API compatible con la de OpenAI (por eso se reutiliza `OpenAIWhisperSTT` con otra URL), y Kokoro genera una voz natural en tu CPU (~1-2 s por frase, ~280 MB de RAM) sin API key. Piper queda como alternativa más liviana pero más robótica. Solo se pide la key de los proveedores activos.
 - **Correcciones estructuradas**: Claude responde con texto (eso se habla) y además llama a la herramienta `record_corrections` con un JSON validado por un schema (eso se muestra y, en la Fase 4, se guarda en la BD).
 - **Prompt del tutor**: `backend/app/tutor/prompts.py` (niveles A2–C1, modos y reglas como deletrear palabras dudosas).
 - **Errores**: si falla un proveedor, el usuario ve un mensaje claro y la sesión sigue viva. Si falla solo el TTS, igual se muestra el texto de Nimbo.
