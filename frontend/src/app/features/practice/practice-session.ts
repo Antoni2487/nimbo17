@@ -1,5 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
+import { AudioEngine } from '../../core/audio/audio-engine';
+import { VoiceMeter } from '../../core/audio/voice-meter';
 import {
   Correction,
   Level,
@@ -7,10 +9,8 @@ import {
   TutorMessage,
   TutorState,
 } from '../../core/models/tutor.models';
-import { AudioEngine } from '../../core/audio/audio-engine';
-import { VoiceMeter } from '../../core/audio/voice-meter';
 import { AudioPlayer } from '../../core/services/audio-player';
-import { AudioRecorder } from '../../core/services/audio-recorder';
+import { HandsFreeListener } from '../../core/services/hands-free-listener';
 import { TutorApi, apiErrorMessage, isNoMoreNudges } from '../../core/services/tutor-api';
 
 export type SessionStatus = 'setup' | 'starting' | 'ready' | 'recording' | 'thinking' | 'speaking';
@@ -23,14 +23,16 @@ export interface ChatEntry {
   corrections: Correction[];
 }
 
-/** Grabaciones más cortas que esto se consideran un clic accidental. */
-const MIN_RECORDING_MS = 400;
-
 /** Si el estudiante no habla en este tiempo después de que Nimbo pregunta, Nimbo da una pista. */
 export const NUDGE_DELAY_MS = 10_000;
 
 /**
- * Estado + lógica de una sesión de práctica.
+ * Estado + lógica de una sesión de práctica, manos libres.
+ *
+ * El micrófono queda abierto toda la sesión y HandsFreeListener avisa cuándo
+ * empiezas y terminas de hablar. Según el estado, el detector está:
+ *   ready → 'listening' · speaking → 'barge-in' (puedes interrumpir a Nimbo)
+ *   thinking / en pausa → 'off'
  *
  * No es `providedIn: 'root'`: se declara en `providers` del componente de la página,
  * así cada vez que entras a la pantalla tienes una instancia nueva y limpia.
@@ -40,7 +42,7 @@ export const NUDGE_DELAY_MS = 10_000;
 @Injectable()
 export class PracticeSession {
   private readonly api = inject(TutorApi);
-  private readonly recorder = inject(AudioRecorder);
+  private readonly listener = inject(HandsFreeListener);
   private readonly player = inject(AudioPlayer);
   private readonly engine = inject(AudioEngine);
 
@@ -53,6 +55,8 @@ export class PracticeSession {
   readonly error = signal<string | null>(null);
   readonly level = signal<Level>('B1');
   readonly mode = signal<PracticeMode>('free_talk');
+  /** En pausa: Nimbo no escucha ni da pistas (para cuando te llaman o hablas con alguien). */
+  readonly paused = signal(false);
 
   readonly tutorState = computed<TutorState>(() => {
     switch (this.status()) {
@@ -74,14 +78,11 @@ export class PracticeSession {
       case 'speaking':
         return this.player.meter();
       case 'listening':
-        return this.recorder.meter();
+        return this.listener.meter();
       default:
         return null;
     }
   });
-
-  /** Se puede hablar cuando Nimbo espera, o mientras habla (para interrumpirlo). */
-  readonly canTalk = computed(() => ['ready', 'speaking'].includes(this.status()));
 
   async start(mode: PracticeMode, level: Level): Promise<void> {
     // Síncrono, antes de cualquier await: todavía estamos dentro del clic del usuario.
@@ -90,10 +91,15 @@ export class PracticeSession {
     this.level.set(level);
     this.error.set(null);
     this.messages.set([]);
+    this.paused.set(false);
     this.status.set('starting');
     try {
       // Pedimos el micrófono ya, para que el permiso no interrumpa el primer turno.
-      await this.recorder.ensureMicrophone();
+      await this.listener.start({
+        onSpeechStart: () => this.onSpeechStart(),
+        onUtterance: (audio) => void this.onUtterance(audio),
+        onDiscard: () => this.onDiscard(),
+      });
       const res = await this.api.startSession(mode, level);
       this.sessionId = res.session_id;
       await this.say(res.tutor);
@@ -101,64 +107,45 @@ export class PracticeSession {
       this.error.set(
         e instanceof DOMException ? 'Necesito permiso para usar tu micrófono.' : apiErrorMessage(e),
       );
+      this.listener.stop();
       this.status.set('setup');
     }
   }
 
-  async beginRecording(): Promise<void> {
-    if (!this.canTalk()) return;
-    this.cancelNudge();
-    this.player.stop(); // si Nimbo estaba hablando, lo interrumpimos
-    this.error.set(null);
-    try {
-      await this.recorder.start();
-      this.status.set('recording');
-    } catch {
-      this.error.set('No pude acceder al micrófono.');
-    }
-  }
-
-  async finishRecording(): Promise<void> {
-    if (this.status() !== 'recording' || !this.sessionId) return;
-    const { blob, durationMs } = await this.recorder.stop();
-
-    if (durationMs < MIN_RECORDING_MS || blob.size === 0) {
-      this.error.set('Mantén presionado el botón mientras hablas.');
-      this.status.set('ready');
-      this.scheduleNudge();
-      return;
-    }
-
-    this.status.set('thinking');
-    try {
-      const res = await this.api.sendTurn(this.sessionId, blob);
-      this.push('user', res.transcript, res.tutor.corrections);
-      await this.say(res.tutor);
-    } catch (e) {
-      this.error.set(apiErrorMessage(e));
-      this.status.set('ready');
+  togglePause(): void {
+    const paused = !this.paused();
+    this.paused.set(paused);
+    if (paused) {
+      this.cancelNudge();
+      this.listener.mode = 'off';
+      if (this.status() === 'recording') this.status.set('ready');
+    } else if (this.status() === 'ready') {
+      this.listen();
     }
   }
 
   /** Nimbo da una pista porque pasó un rato sin que el estudiante hablara. */
   async nudge(): Promise<void> {
     this.nudgeTimer = null;
-    if (this.status() !== 'ready' || !this.sessionId) return;
+    if (this.status() !== 'ready' || this.paused() || !this.sessionId) return;
     this.status.set('thinking');
+    this.listener.mode = 'off';
     try {
       await this.say(await this.api.nudge(this.sessionId));
     } catch (e) {
       // 409: ya dio sus 2 pistas; Nimbo espera en silencio, sin mostrar error.
       if (!isNoMoreNudges(e)) this.error.set(apiErrorMessage(e));
-      if (this.status() === 'thinking') this.status.set('ready');
+      if (this.status() === 'thinking') {
+        this.status.set('ready');
+        this.listener.mode = this.paused() ? 'off' : 'listening';
+      }
     }
   }
 
   async end(): Promise<void> {
     this.cancelNudge();
     this.player.stop();
-    if (this.recorder.isRecording()) await this.recorder.stop();
-    this.recorder.release();
+    this.listener.stop();
     if (this.sessionId) {
       this.api.endSession(this.sessionId).catch(() => undefined); // no bloquea la salida
     }
@@ -166,22 +153,55 @@ export class PracticeSession {
     this.status.set('setup');
   }
 
+  private onSpeechStart(): void {
+    if (this.paused() || !['ready', 'speaking'].includes(this.status())) return;
+    this.cancelNudge();
+    this.error.set(null);
+    // Primero el estado y después parar el audio: así say() ve 'recording' y no lo pisa.
+    this.status.set('recording');
+    this.player.stop(); // si Nimbo estaba hablando, lo interrumpiste
+    this.listener.mode = 'listening';
+  }
+
+  private onDiscard(): void {
+    if (this.status() === 'recording') this.listen();
+  }
+
+  private async onUtterance(audio: Blob): Promise<void> {
+    if (this.status() !== 'recording' || !this.sessionId) return;
+    this.listener.mode = 'off';
+    this.status.set('thinking');
+    try {
+      const res = await this.api.sendTurn(this.sessionId, audio);
+      this.push('user', res.transcript, res.tutor.corrections);
+      await this.say(res.tutor);
+    } catch (e) {
+      this.error.set(apiErrorMessage(e));
+      this.listen();
+    }
+  }
+
   private async say(message: TutorMessage): Promise<void> {
     this.push('tutor', message.text, []);
     if (message.warning) this.error.set(message.warning);
     if (message.audio_base64 && message.audio_mime_type) {
       this.status.set('speaking');
+      this.listener.mode = this.paused() ? 'off' : 'barge-in';
       await this.player.playBase64(message.audio_base64, message.audio_mime_type);
     }
     // Si el usuario interrumpió, ya estamos en 'recording': no pisamos ese estado.
-    if (
-      this.status() === 'speaking' ||
-      this.status() === 'starting' ||
-      this.status() === 'thinking'
-    ) {
-      this.status.set('ready');
-      this.scheduleNudge();
+    if (['speaking', 'starting', 'thinking'].includes(this.status())) this.listen();
+  }
+
+  /** Turno del estudiante: escuchar y, si no habla, preparar una pista. */
+  private listen(): void {
+    this.status.set('ready');
+    if (this.paused()) {
+      this.listener.mode = 'off';
+      return;
     }
+    this.listener.mode = 'listening';
+    this.scheduleNudge();
   }
 
   private scheduleNudge(): void {

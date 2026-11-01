@@ -3,11 +3,7 @@
 export type Level = 'A2' | 'B1' | 'B2' | 'C1';
 
 export type PracticeMode =
-  | 'free_talk'
-  | 'job_interview'
-  | 'travel'
-  | 'university_life'
-  | 'tech_talk';
+  'free_talk' | 'job_interview' | 'travel' | 'university_life' | 'tech_talk';
 
 export type CorrectionKind = 'grammar' | 'vocabulary' | 'pronunciation' | 'naturalness';
 

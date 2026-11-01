@@ -18,9 +18,7 @@ export class TutorApi {
   // HttpClient devuelve Observables; para una sola respuesta, firstValueFrom
   // la convierte en Promise y así el flujo se lee con async/await.
   startSession(mode: PracticeMode, level: Level): Promise<StartSessionResponse> {
-    return firstValueFrom(
-      this.http.post<StartSessionResponse>('/api/sessions', { mode, level }),
-    );
+    return firstValueFrom(this.http.post<StartSessionResponse>('/api/sessions', { mode, level }));
   }
 
   sendTurn(sessionId: string, audio: Blob): Promise<TurnResponse> {

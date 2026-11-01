@@ -28,9 +28,8 @@ interface Option<T> {
   // Instancia propia de PracticeSession para esta pantalla (ver practice-session.ts).
   providers: [PracticeSession],
   host: {
-    // Barra espaciadora = mantener presionado para hablar
-    '(window:keydown.space)': 'onSpace($event, true)',
-    '(window:keyup.space)': 'onSpace($event, false)',
+    // Barra espaciadora = pausa / continuar
+    '(window:keydown.space)': 'onSpace($event)',
   },
 })
 export class PracticePage implements OnDestroy {
@@ -45,7 +44,11 @@ export class PracticePage implements OnDestroy {
 
   protected readonly modes: Option<PracticeMode>[] = [
     { value: 'free_talk', label: 'Charla libre', hint: 'Tu día, tus planes, tus gustos' },
-    { value: 'job_interview', label: 'Entrevista de trabajo', hint: 'Preguntas típicas de RR. HH.' },
+    {
+      value: 'job_interview',
+      label: 'Entrevista de trabajo',
+      hint: 'Preguntas típicas de RR. HH.',
+    },
     { value: 'travel', label: 'Viajes', hint: 'Aeropuerto, hotel, restaurante' },
     { value: 'university_life', label: 'Vida universitaria', hint: 'Clases, proyectos, exámenes' },
     { value: 'tech_talk', label: 'Tech talk', hint: 'Programación, IA, proyectos' },
@@ -72,13 +75,11 @@ export class PracticePage implements OnDestroy {
     return this.modes.find((m) => m.value === mode)?.label ?? mode;
   }
 
-  protected onSpace(event: Event, down: boolean): void {
+  protected onSpace(event: Event): void {
     const target = event.target as HTMLElement | null;
     if (this.session.status() === 'setup' || target?.closest('button, select, input')) return;
     event.preventDefault();
-    const e = event as KeyboardEvent;
-    if (down && !e.repeat) void this.session.beginRecording();
-    if (!down) void this.session.finishRecording();
+    if (!(event as KeyboardEvent).repeat) this.session.togglePause();
   }
 
   ngOnDestroy(): void {

@@ -233,43 +233,21 @@ header {
   text-align: center;
 }
 
-.talk-bar {
-  position: sticky;
-  bottom: 16px;
+.actions {
   display: flex;
-  justify-content: center;
-  padding-top: 8px;
+  gap: 8px;
 }
 
-.talk {
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  border: 0;
-  background: var(--accent);
-  color: #fff;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 40%, transparent);
-  touch-action: none; // evita scroll/zoom mientras se mantiene presionado en el celular
-  user-select: none;
-  transition:
-    transform 0.12s,
-    background 0.2s;
+.ghost.paused {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
 
-  svg {
-    width: 34px;
-    height: 34px;
-    fill: currentColor;
-  }
-  &.recording {
-    background: var(--danger);
-    transform: scale(1.12);
-    box-shadow: 0 0 0 10px color-mix(in srgb, var(--danger) 20%, transparent);
-  }
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
+.hint {
+  margin: 0;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
 }
